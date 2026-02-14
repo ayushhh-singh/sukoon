@@ -15,14 +15,12 @@ import type {
 } from '../types';
 import type { AssessmentResult, AssessmentConfig, AssessmentResponse } from '../types/assessments';
 import type { MoodEntry } from '../types/mood';
-import type { OnboardingData, SessionSummary, BookmarkedStrategy, AmbientSound } from '../types/session';
+import type { OnboardingData, SessionSummary, BookmarkedStrategy, AmbientSound, UserProfile } from '../types/session';
 
 export function useSession() {
   // Determine initial phase
   const [phase, setPhase] = useState<SessionPhase>(
-    StorageService.hasConsented()
-      ? (StorageService.getOnboarding() ? 'pre-mood' : 'onboarding')
-      : 'consent'
+    StorageService.hasConsented() ? 'profile-select' : 'consent'
   );
   const [speakingState, setSpeakingState] = useState<SpeakingState>('idle');
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
@@ -44,6 +42,9 @@ export function useSession() {
 
   // Session goal (reset each session)
   const [sessionGoal, setSessionGoal] = useState('');
+
+  // Concerns selected for this specific session (may differ from onboarding)
+  const [sessionConcerns, setSessionConcerns] = useState<string[]>([]);
 
   // Ambient sound preference (persisted)
   const [ambientSound, setAmbientSoundState] = useState<AmbientSound>(StorageService.getAmbientSound());
@@ -166,20 +167,68 @@ export function useSession() {
 
   const acceptConsent = useCallback(() => {
     StorageService.setConsented();
-    setPhase(StorageService.getOnboarding() ? 'pre-mood' : 'onboarding');
+    setPhase('profile-select');
+  }, []);
+
+  const selectProfile = useCallback((profile: UserProfile) => {
+    StorageService.setActiveProfileId(profile.id);
+    setOnboardingData(profile.onboarding);
+    setSessionConcerns([]);
+    setPhase('concern-select');
+  }, []);
+
+  const completeSessionConcerns = useCallback((concerns: string[]) => {
+    setSessionConcerns(concerns);
+    setSelectedAssessment(selectAssessmentForConcerns(concerns));
+    const activeId = StorageService.getActiveProfileId();
+    if (activeId) StorageService.saveLastConcerns(activeId, concerns);
+    setPhase('pre-mood');
+  }, []);
+
+  const skipSessionConcerns = useCallback(() => {
+    const activeId = StorageService.getActiveProfileId();
+    const last = activeId ? StorageService.getLastConcerns(activeId) : [];
+    if (last.length > 0) {
+      setSessionConcerns(last);
+      setSelectedAssessment(selectAssessmentForConcerns(last));
+    } else {
+      setSessionConcerns([]);
+    }
+    setPhase('pre-mood');
+  }, []);
+
+  const startNewUserFlow = useCallback(() => {
+    setPhase('onboarding');
+  }, []);
+
+  const switchUser = useCallback(() => {
+    setPhase('profile-select');
   }, []);
 
   const completeOnboarding = useCallback((data: OnboardingData) => {
-    StorageService.saveOnboarding(data);
+    const profile: UserProfile = {
+      id: `profile-${Date.now()}`,
+      displayName: data.preferredName !== 'there' ? data.preferredName : 'User',
+      createdAt: new Date().toISOString(),
+      onboarding: data,
+    };
+    StorageService.saveProfile(profile);
+    StorageService.setActiveProfileId(profile.id);
     setOnboardingData(data);
-    // Dynamically select assessment based on concerns
     setSelectedAssessment(selectAssessmentForConcerns(data.primaryConcerns));
     setPhase('pre-mood');
   }, []);
 
   const skipOnboarding = useCallback(() => {
     const d: OnboardingData = { preferredName: 'there', primaryConcerns: [], therapyExperience: 'none' };
-    StorageService.saveOnboarding(d);
+    const profile: UserProfile = {
+      id: `profile-${Date.now()}`,
+      displayName: 'User',
+      createdAt: new Date().toISOString(),
+      onboarding: d,
+    };
+    StorageService.saveProfile(profile);
+    StorageService.setActiveProfileId(profile.id);
     setOnboardingData(d);
     setPhase('pre-mood');
   }, []);
@@ -239,7 +288,11 @@ export function useSession() {
           type: 'session.start',
           assessmentContext: Object.keys(assessCtx).length > 0 ? assessCtx : undefined,
           userPreferences: onboardingData
-            ? { ...onboardingData, goalForToday: sessionGoal.trim() || undefined }
+            ? {
+                ...onboardingData,
+                primaryConcerns: sessionConcerns.length > 0 ? sessionConcerns : onboardingData.primaryConcerns,
+                goalForToday: sessionGoal.trim() || undefined,
+              }
             : undefined,
         });
       }, 500);
@@ -247,7 +300,7 @@ export function useSession() {
       setErrorMessage('Could not access your microphone. Please allow microphone access and try again.');
       setPhase('ready');
     }
-  }, [connect, startCapture, send, preAssessmentResult, onboardingData]);
+  }, [connect, startCapture, send, preAssessmentResult, onboardingData, sessionConcerns, sessionGoal]);
 
   const endSession = useCallback(() => {
     stopCapture();
@@ -278,6 +331,7 @@ export function useSession() {
     const sd = summaryDataRef.current;
     const summary: SessionSummary = {
       id: `summary-${Date.now()}`, sessionId: sessionIdRef.current,
+      userId: StorageService.getActiveProfileId() ?? undefined,
       date: new Date().toISOString(), duration: sessionDuration,
       keyTakeaways: sd?.keyTakeaways || [],
       copingStrategies: sd?.copingStrategies || [],
@@ -316,10 +370,20 @@ export function useSession() {
     });
   }, []);
 
-  // New session clears onboarding and reloads to fresh intake
+  // New session goes back to profile picker — no reload needed
   const newSession = useCallback(() => {
-    StorageService.clearOnboarding();
-    window.location.reload();
+    setPhase('profile-select');
+    setPreMood(null);
+    setPostMood(null);
+    setPreAssessmentResult(null);
+    setPreviousAssessmentResult(null);
+    setSessionSummary(null);
+    setViewingResults(false);
+    setSessionGoal('');
+    setSessionConcerns([]);
+    setTranscripts([]);
+    summaryDataRef.current = undefined;
+    sessionIdRef.current = `session-${Date.now()}`;
   }, []);
 
   const dismissError = useCallback(() => setErrorMessage(null), []);
@@ -371,7 +435,8 @@ export function useSession() {
     bookmarks, toggleBookmark,
     showHistory, openHistory, closeHistory,
 
-    acceptConsent, completeOnboarding, skipOnboarding,
+    acceptConsent, selectProfile, startNewUserFlow, switchUser, completeOnboarding, skipOnboarding,
+    completeSessionConcerns, skipSessionConcerns,
     selectPreMood, completePreAssessment, skipPreAssessment, confirmPreAssessmentResults,
     startSession, endSession,
     selectPostMood,

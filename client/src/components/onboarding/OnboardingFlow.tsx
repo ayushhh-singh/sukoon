@@ -18,12 +18,11 @@ const CONCERN_OPTIONS = [
 const LANGUAGE_OPTIONS = [
   { code: 'English', label: 'English', native: 'English' },
   { code: 'Hindi', label: 'Hindi', native: 'हिन्दी' },
+  { code: 'Punjabi', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+  { code: 'Rajasthani', label: 'Rajasthani', native: 'राजस्थानी' },
   { code: 'Spanish', label: 'Spanish', native: 'Español' },
   { code: 'French', label: 'French', native: 'Français' },
-  { code: 'German', label: 'German', native: 'Deutsch' },
-  { code: 'Portuguese', label: 'Portuguese', native: 'Português' },
   { code: 'Arabic', label: 'Arabic', native: 'العربية' },
-  { code: 'Japanese', label: 'Japanese', native: '日本語' },
 ];
 
 const TOTAL_STEPS = 6;

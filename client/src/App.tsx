@@ -1,5 +1,7 @@
 import { useSession } from './hooks/useSession';
 import { ConsentScreen } from './components/ConsentScreen';
+import { ProfilePickerScreen } from './components/ProfilePickerScreen';
+import { SessionConcernPicker } from './components/SessionConcernPicker';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { MoodPicker } from './components/mood/MoodPicker';
 import { AssessmentScreen } from './components/assessments/AssessmentScreen';
@@ -24,6 +26,7 @@ import { MindfulVisualization } from './components/exercises/MindfulVisualizatio
 import { GratitudeJournal } from './components/exercises/GratitudeJournal';
 import { SelfCompassionBreak } from './components/exercises/SelfCompassionBreak';
 import { ThemeToggle } from './components/ThemeToggle';
+import { LanguageToggle } from './components/LanguageToggle';
 import { HistoryScreen } from './components/history/HistoryScreen';
 import { Layers, History, Volume2 } from 'lucide-react';
 import type { AmbientSound } from './types/session';
@@ -60,11 +63,37 @@ function App() {
 
   return (
     <div className="app">
-      <ThemeToggle />
+      <div className="top-controls">
+        <LanguageToggle disabled={session.phase === 'active'} />
+        {session.phase !== 'active' && session.phase !== 'consent' && session.phase !== 'profile-select' && (
+          <button className="switch-user-btn" onClick={session.switchUser} title="Switch user">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Switch</span>
+          </button>
+        )}
+        <ThemeToggle />
+      </div>
 
       {/* Phase: Consent */}
       {session.phase === 'consent' && (
         <ConsentScreen onAccept={session.acceptConsent} />
+      )}
+
+      {/* Phase: Profile Select */}
+      {session.phase === 'profile-select' && (
+        <ProfilePickerScreen
+          onSelectProfile={session.selectProfile}
+          onNewUser={session.startNewUserFlow}
+        />
+      )}
+
+      {/* Phase: Concern Select (returning user) */}
+      {session.phase === 'concern-select' && (
+        <SessionConcernPicker
+          name={session.onboardingData?.preferredName ?? ''}
+          onComplete={session.completeSessionConcerns}
+          onSkip={session.skipSessionConcerns}
+        />
       )}
 
       {/* Phase: Onboarding */}

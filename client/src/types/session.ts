@@ -16,6 +16,7 @@ import type { MoodEntry } from './mood';
 export interface SessionSummary {
   id: string;
   sessionId: string;
+  userId?: string;
   date: string;
   duration: number;
 
@@ -60,6 +61,13 @@ export interface OnboardingData {
   voicePreference?: 'female' | 'male';
   language?: string;
   ambientSound?: AmbientSound;
+}
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  createdAt: string;
+  onboarding: OnboardingData;
 }
 
 export interface SessionContext {

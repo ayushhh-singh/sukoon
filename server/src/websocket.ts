@@ -199,10 +199,11 @@ function connectToOpenAI(session: Session): void {
         },
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.5,
+          threshold: 0.7,
           prefix_padding_ms: 300,
           silence_duration_ms: 700,
         },
+        input_audio_noise_reduction: { type: 'near_field' },
         temperature: 0.85,
         max_response_output_tokens: 1536,
       },

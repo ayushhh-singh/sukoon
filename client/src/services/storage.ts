@@ -1,18 +1,19 @@
 import type { AssessmentResult } from '../types/assessments';
 import type { MoodEntry } from '../types/mood';
-import type { SessionSummary, OnboardingData, BookmarkedStrategy, AmbientSound } from '../types/session';
+import type { SessionSummary, OnboardingData, BookmarkedStrategy, AmbientSound, UserProfile } from '../types/session';
 
 const KEYS = {
   SESSIONS: 'sukoon_sessions',
   ASSESSMENTS: 'sukoon_assessments',
   MOODS: 'sukoon_moods',
-  ONBOARDING: 'sukoon_onboarding',
   CONSENT: 'sukoon_consent',
   BOOKMARKS: 'sukoon_bookmarks',
   AMBIENT: 'sukoon_ambient',
+  PROFILES: 'sukoon_profiles',
+  ACTIVE_PROFILE: 'sukoon_active_profile',
 } as const;
 
-const MAX_SESSIONS = 50;
+const MAX_SESSIONS = 100;
 
 function getItem<T>(key: string, fallback: T): T {
   try {
@@ -35,6 +36,10 @@ export const StorageService = {
   // Sessions
   getSessions(): SessionSummary[] {
     return getItem<SessionSummary[]>(KEYS.SESSIONS, []);
+  },
+
+  getSessionsForUser(userId: string): SessionSummary[] {
+    return this.getSessions().filter(s => s.userId === userId);
   },
 
   saveSession(session: SessionSummary): void {
@@ -71,17 +76,55 @@ export const StorageService = {
     setItem(KEYS.MOODS, moods);
   },
 
-  // Onboarding
+  // User Profiles
+  getProfiles(): UserProfile[] {
+    return getItem<UserProfile[]>(KEYS.PROFILES, []);
+  },
+
+  saveProfile(profile: UserProfile): void {
+    const profiles = this.getProfiles();
+    const idx = profiles.findIndex(p => p.id === profile.id);
+    if (idx >= 0) {
+      profiles[idx] = profile;
+    } else {
+      profiles.push(profile);
+    }
+    setItem(KEYS.PROFILES, profiles);
+  },
+
+  deleteProfile(id: string): void {
+    const profiles = this.getProfiles().filter(p => p.id !== id);
+    setItem(KEYS.PROFILES, profiles);
+  },
+
+  getActiveProfileId(): string | null {
+    return localStorage.getItem(KEYS.ACTIVE_PROFILE);
+  },
+
+  setActiveProfileId(id: string): void {
+    localStorage.setItem(KEYS.ACTIVE_PROFILE, id);
+  },
+
+  getActiveProfile(): UserProfile | null {
+    const id = this.getActiveProfileId();
+    if (!id) return null;
+    return this.getProfiles().find(p => p.id === id) ?? null;
+  },
+
+  // Onboarding (derived from active profile — kept for backward compat)
   getOnboarding(): OnboardingData | null {
-    return getItem<OnboardingData | null>(KEYS.ONBOARDING, null);
+    return this.getActiveProfile()?.onboarding ?? null;
   },
 
-  saveOnboarding(data: OnboardingData): void {
-    setItem(KEYS.ONBOARDING, data);
+  // Last session concerns per profile (used to pre-fill concern picker)
+  getLastConcerns(profileId: string): string[] {
+    return getItem<string[]>(`sukoon_last_concerns_${profileId}`, []);
   },
 
-  clearOnboarding(): void {
-    localStorage.removeItem(KEYS.ONBOARDING);
+  saveLastConcerns(profileId: string, concerns: string[]): void {
+    if (concerns.length > 0) {
+      try { localStorage.setItem(`sukoon_last_concerns_${profileId}`, JSON.stringify(concerns)); } catch { /* */ }
+    }
   },
 
   // Consent

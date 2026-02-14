@@ -2,7 +2,9 @@ export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnect
 
 export type SessionPhase =
   | 'consent'
+  | 'profile-select'
   | 'onboarding'
+  | 'concern-select'
   | 'pre-mood'
   | 'pre-assessment'
   | 'ready'
