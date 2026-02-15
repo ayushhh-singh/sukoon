@@ -1,4 +1,6 @@
 import type { TranscriptEntry } from './index';
+import type { AssessmentResult } from './assessments';
+import type { MoodEntry } from './mood';
 
 export type AmbientSound = 'none' | 'rain' | 'ocean' | 'forest' | 'piano';
 
@@ -10,8 +12,6 @@ export interface BookmarkedStrategy {
   sessionDate: string;
   savedAt: string;
 }
-import type { AssessmentResult } from './assessments';
-import type { MoodEntry } from './mood';
 
 export interface SessionSummary {
   id: string;
@@ -43,10 +43,8 @@ export interface SessionSummary {
 
   preMood: MoodEntry | null;
   postMood: MoodEntry | null;
-
   preAssessment: AssessmentResult | null;
   sessionRating?: number;
-
   transcriptEntries: TranscriptEntry[];
   userReflection?: string;
 }

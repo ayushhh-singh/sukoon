@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { SpeakingState } from '../types';
 
 interface VoiceOrbProps {
@@ -8,24 +7,12 @@ interface VoiceOrbProps {
 }
 
 export function VoiceOrb({ speakingState, micVolume, aiVolume }: VoiceOrbProps) {
-  const scale = useMemo(() => {
-    if (speakingState === 'user-speaking') {
-      return 1 + micVolume * 3;
-    }
-    if (speakingState === 'ai-speaking') {
-      return 1 + aiVolume * 3;
-    }
-    return 1;
-  }, [speakingState, micVolume, aiVolume]);
+  const scale =
+    speakingState === 'user-speaking' ? 1 + micVolume * 3 :
+    speakingState === 'ai-speaking'   ? 1 + aiVolume * 3  : 1;
 
-  const orbClass = [
-    'voice-orb',
-    speakingState === 'user-speaking' && 'orb-user',
-    speakingState === 'ai-speaking' && 'orb-ai',
-    speakingState === 'idle' && 'orb-idle',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const stateKey = speakingState === 'user-speaking' ? 'user' : speakingState === 'ai-speaking' ? 'ai' : 'idle';
+  const orbClass = `voice-orb orb-${stateKey}`;
 
   return (
     <div className="voice-orb-container">

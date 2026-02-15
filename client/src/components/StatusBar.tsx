@@ -3,7 +3,6 @@ import type { ConnectionStatus } from '../types';
 
 interface StatusBarProps {
   status: ConnectionStatus;
-  sessionId: string | null;
 }
 
 export function StatusBar({ status }: StatusBarProps) {

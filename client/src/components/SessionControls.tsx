@@ -6,6 +6,8 @@ interface SessionControlsProps {
   connectionStatus: ConnectionStatus;
   onStart: () => void;
   onEnd: () => void;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
 }
 
 export function SessionControls({
@@ -13,6 +15,8 @@ export function SessionControls({
   connectionStatus,
   onStart,
   onEnd,
+  isMuted = false,
+  onToggleMute,
 }: SessionControlsProps) {
   if (!isActive) {
     return (
@@ -30,22 +34,30 @@ export function SessionControls({
 
   return (
     <div className="session-controls active">
-      <div className="mic-indicator">
-        {connectionStatus === 'connected' ? (
-          <Mic size={20} className="mic-active" />
-        ) : (
-          <MicOff size={20} />
-        )}
-        <span>
-          {connectionStatus === 'connected'
+      <div className="session-controls-row">
+        <button
+          className={`btn-mute${isMuted ? ' muted' : ''}`}
+          onClick={onToggleMute}
+          title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+          disabled={connectionStatus !== 'connected'}
+        >
+          {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+          <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+        </button>
+
+        <button className="btn-end" onClick={onEnd}>
+          <PhoneOff size={20} />
+          <span>End Session</span>
+        </button>
+      </div>
+
+      <p className="controls-hint-active">
+        {isMuted
+          ? 'Microphone muted — Dr. Aria cannot hear you'
+          : connectionStatus === 'connected'
             ? 'Microphone active — speak naturally'
             : 'Connecting...'}
-        </span>
-      </div>
-      <button className="btn-end" onClick={onEnd}>
-        <PhoneOff size={20} />
-        <span>End Session</span>
-      </button>
+      </p>
     </div>
   );
 }

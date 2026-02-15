@@ -92,6 +92,7 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
         session.context = {
           assessmentContext: message.assessmentContext,
           userPreferences: message.userPreferences,
+          priorSessionContext: message.priorSessionContext,
         };
         connectToOpenAI(session);
         break;
@@ -199,9 +200,9 @@ function connectToOpenAI(session: Session): void {
         },
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.7,
+          threshold: 0.5,
           prefix_padding_ms: 300,
-          silence_duration_ms: 700,
+          silence_duration_ms: 800,
         },
         input_audio_noise_reduction: { type: 'near_field' },
         temperature: 0.85,
@@ -305,7 +306,6 @@ function handleOpenAIMessage(session: Session, data: Buffer | string): void {
         });
         if (userTranscript) {
           session.transcriptBuffer.push({ role: 'user', text: userTranscript });
-          // Enhanced crisis detection
           performCrisisCheck(session, userTranscript);
         }
         break;

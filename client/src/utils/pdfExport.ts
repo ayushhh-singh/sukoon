@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SessionSummary } from '../types/session';
+import { formatDuration } from './format';
 
 // Brand colors
 const INDIGO = [79, 70, 229] as const;    // #4f46e5
@@ -8,12 +9,6 @@ const TEAL = [20, 184, 166] as const;     // #14b8a6
 const DARK = [30, 30, 48] as const;       // #1e1e30
 const GRAY = [148, 163, 184] as const;    // #94a3b8
 const WHITE = [255, 255, 255] as const;
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
 
 export function exportSessionAsPDF(summary: SessionSummary): void {
   const doc = new jsPDF('p', 'mm', 'a4');

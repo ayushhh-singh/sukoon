@@ -3,13 +3,16 @@ import { float32ToPcm16Base64, computeVolume } from '../utils/audioUtils';
 
 interface UseAudioCaptureReturn {
   isCapturing: boolean;
+  isMuted: boolean;
   volume: number;
   startCapture: (onAudioChunk: (base64: string) => void) => Promise<void>;
   stopCapture: () => void;
+  toggleMute: () => void;
 }
 
 export function useAudioCapture(): UseAudioCaptureReturn {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -68,6 +71,14 @@ export function useAudioCapture(): UseAudioCaptureReturn {
     }
   }, []);
 
+  const toggleMute = useCallback(() => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getAudioTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    setIsMuted(!track.enabled);
+  }, []);
+
   const stopCapture = useCallback(() => {
     if (volumeIntervalRef.current) {
       clearInterval(volumeIntervalRef.current);
@@ -90,8 +101,9 @@ export function useAudioCapture(): UseAudioCaptureReturn {
     }
 
     setIsCapturing(false);
+    setIsMuted(false);
     setVolume(0);
   }, []);
 
-  return { isCapturing, volume, startCapture, stopCapture };
+  return { isCapturing, isMuted, volume, startCapture, stopCapture, toggleMute };
 }

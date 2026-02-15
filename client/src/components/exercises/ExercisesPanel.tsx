@@ -28,23 +28,26 @@ export function ExercisesPanel({ onClose, onSelectExercise }: ExercisesPanelProp
             <X size={20} />
           </button>
         </div>
-        <div className="exercises-grid">
-          {EXERCISES.map(ex => (
-            <button
-              key={ex.id}
-              className="exercise-card"
+
+        <div className="exercises-panel-body">
+          <div className="exercises-grid">
+            {EXERCISES.map(ex => (
+              <button
+                key={ex.id}
+                className="exercise-card"
               onClick={() => {
                 onSelectExercise(ex.id);
                 onClose();
               }}
-            >
-              <div className="exercise-card-icon">
-                <ex.icon size={24} />
-              </div>
-              <strong>{ex.title}</strong>
-              <span>{ex.desc}</span>
-            </button>
-          ))}
+              >
+                <div className="exercise-card-icon">
+                  <ex.icon size={24} />
+                </div>
+                <strong>{ex.title}</strong>
+                <span>{ex.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

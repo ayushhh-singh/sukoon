@@ -23,28 +23,14 @@ const CONCERN_TO_ASSESSMENT: Record<string, AssessmentConfig> = {
 };
 
 export function selectAssessmentForConcerns(concerns: string[]): AssessmentConfig {
-  if (concerns.length === 0) return PHQ9_CONFIG;
+  if (!concerns.length) return PHQ9_CONFIG;
 
   const counts = new Map<AssessmentConfig, number>();
-
   for (const concern of concerns) {
-    const config = CONCERN_TO_ASSESSMENT[concern];
-    if (config) {
-      counts.set(config, (counts.get(config) || 0) + 1);
-    }
+    const cfg = CONCERN_TO_ASSESSMENT[concern];
+    if (cfg) counts.set(cfg, (counts.get(cfg) ?? 0) + 1);
   }
 
-  if (counts.size === 0) return PHQ9_CONFIG;
-
-  let best: AssessmentConfig = PHQ9_CONFIG;
-  let bestCount = 0;
-
-  for (const [config, count] of counts) {
-    if (count > bestCount) {
-      bestCount = count;
-      best = config;
-    }
-  }
-
-  return best;
+  if (!counts.size) return PHQ9_CONFIG;
+  return [...counts.entries()].reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }

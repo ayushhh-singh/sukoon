@@ -1,3 +1,4 @@
+import React from 'react';
 import { useSession } from './hooks/useSession';
 import { ConsentScreen } from './components/ConsentScreen';
 import { ProfilePickerScreen } from './components/ProfilePickerScreen';
@@ -28,37 +29,33 @@ import { SelfCompassionBreak } from './components/exercises/SelfCompassionBreak'
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageToggle } from './components/LanguageToggle';
 import { HistoryScreen } from './components/history/HistoryScreen';
+import { PriorSessionPicker } from './components/PriorSessionPicker';
 import { Layers, History, Volume2 } from 'lucide-react';
 import type { AmbientSound } from './types/session';
 import './App.css';
 
+// Exercise components keyed by ID — single source of truth
+const EXERCISE_COMPONENTS: Record<string, React.ComponentType<{ onClose: () => void }>> = {
+  breathing: BreathingExercise,
+  grounding: GroundingExercise,
+  pmr: ProgressiveMuscleRelaxation,
+  thoughtRecord: ThoughtRecord,
+  affirmations: PositiveAffirmations,
+  bodyScan: BodyScanMeditation,
+  visualization: MindfulVisualization,
+  gratitude: GratitudeJournal,
+  selfCompassion: SelfCompassionBreak,
+};
+
 function App() {
   const session = useSession();
 
-  function handleSelectExercise(id: string) {
-    const toggleMap: Record<string, () => void> = {
-      breathing: session.toggleBreathing,
-      grounding: session.toggleGrounding,
-      pmr: session.togglePMR,
-      thoughtRecord: session.toggleThoughtRecord,
-      affirmations: session.toggleAffirmations,
-      bodyScan: session.toggleBodyScan,
-      visualization: session.toggleVisualization,
-      gratitude: session.toggleGratitude,
-      selfCompassion: session.toggleSelfCompassion,
-    };
-    toggleMap[id]?.();
-  }
-
-  // When an exercise closes (via X or the "Continue" done button), re-open
-  // the exercises menu so the user isn't left staring at a blank screen.
-  function makeExerciseCloseHandler(toggleFn: () => void) {
-    return () => {
-      toggleFn();
-      if (!session.showExercisesPanel) {
-        session.toggleExercisesPanel();
-      }
-    };
+  // When an exercise closes, re-open the exercises panel
+  function handleExerciseClose(id: string) {
+    session.toggleExercise(id);
+    if (!session.showExercisesPanel) {
+      session.toggleExercisesPanel();
+    }
   }
 
   return (
@@ -87,12 +84,22 @@ function App() {
         />
       )}
 
-      {/* Phase: Concern Select (returning user) */}
+      {/* Phase: Concern Select */}
       {session.phase === 'concern-select' && (
         <SessionConcernPicker
           name={session.onboardingData?.preferredName ?? ''}
           onComplete={session.completeSessionConcerns}
           onSkip={session.skipSessionConcerns}
+        />
+      )}
+
+      {/* Phase: Prior Session Picker */}
+      {session.phase === 'prior-session' && (
+        <PriorSessionPicker
+          sessions={session.priorSessions}
+          selectedConcerns={session.sessionConcerns}
+          onSelect={session.selectPriorSession}
+          onSkip={session.skipPriorSession}
         />
       )}
 
@@ -142,7 +149,6 @@ function App() {
           </div>
           <VoiceOrb speakingState="idle" micVolume={0} aiVolume={0} />
 
-          {/* Session goal input */}
           <div className="session-goal-row">
             <input
               className="session-goal-input"
@@ -154,7 +160,6 @@ function App() {
             />
           </div>
 
-          {/* Ambient sound selector */}
           <div className="ambient-row">
             <Volume2 size={14} className="ambient-icon" />
             {(['none', 'rain', 'ocean', 'forest', 'piano'] as AmbientSound[]).map(s => (
@@ -168,18 +173,21 @@ function App() {
             ))}
           </div>
 
-          <SessionControls
-            isActive={false}
-            connectionStatus={session.connectionStatus}
-            onStart={session.startSession}
-            onEnd={session.endSession}
-          />
-          <div className="ready-bottom-row">
-            <button className="exercises-toggle" onClick={session.toggleExercisesPanel}>
-              <Layers size={16} /> Self-Guided Exercises
+          {/* Start + side actions in one row */}
+          <div className="ready-actions">
+            <button className="ready-side-btn" onClick={session.toggleExercisesPanel} title="Self-Guided Exercises">
+              <Layers size={18} />
+              <span>Exercises</span>
             </button>
-            <button className="history-toggle" onClick={session.openHistory}>
-              <History size={16} /> Past Sessions
+            <SessionControls
+              isActive={false}
+              connectionStatus={session.connectionStatus}
+              onStart={session.startSession}
+              onEnd={session.endSession}
+            />
+            <button className="ready-side-btn" onClick={session.openHistory} title="Past Sessions">
+              <History size={18} />
+              <span>History</span>
             </button>
           </div>
         </div>
@@ -189,7 +197,7 @@ function App() {
       {session.phase === 'active' && (
         <div className="session-screen active">
           <div className="active-status-row">
-            <StatusBar status={session.connectionStatus} sessionId={null} />
+            <StatusBar status={session.connectionStatus} />
             <SessionTimer
               isActive={session.phase === 'active'}
               onDurationUpdate={session.onDurationUpdate}
@@ -205,6 +213,8 @@ function App() {
           <SessionControls
             isActive={true}
             connectionStatus={session.connectionStatus}
+            isMuted={session.isMuted}
+            onToggleMute={session.toggleMute}
             onStart={session.startSession}
             onEnd={session.endSession}
           />
@@ -259,30 +269,26 @@ function App() {
           onToggleBookmark={session.toggleBookmark}
         />
       )}
-      {crisisResources()}
+      {session.crisisResources && (
+        <CrisisModal resources={session.crisisResources} onDismiss={session.dismissCrisis} />
+      )}
       {session.showExercisesPanel && (
         <ExercisesPanel
           onClose={session.toggleExercisesPanel}
-          onSelectExercise={handleSelectExercise}
+          onSelectExercise={session.toggleExercise}
         />
       )}
-      {session.showBreathing && <BreathingExercise onClose={makeExerciseCloseHandler(session.toggleBreathing)} />}
-      {session.showGrounding && <GroundingExercise onClose={makeExerciseCloseHandler(session.toggleGrounding)} />}
-      {session.showPMR && <ProgressiveMuscleRelaxation onClose={makeExerciseCloseHandler(session.togglePMR)} />}
-      {session.showThoughtRecord && <ThoughtRecord onClose={makeExerciseCloseHandler(session.toggleThoughtRecord)} />}
-      {session.showAffirmations && <PositiveAffirmations onClose={makeExerciseCloseHandler(session.toggleAffirmations)} />}
-      {session.showBodyScan && <BodyScanMeditation onClose={makeExerciseCloseHandler(session.toggleBodyScan)} />}
-      {session.showVisualization && <MindfulVisualization onClose={makeExerciseCloseHandler(session.toggleVisualization)} />}
-      {session.showGratitude && <GratitudeJournal onClose={makeExerciseCloseHandler(session.toggleGratitude)} />}
-      {session.showSelfCompassion && <SelfCompassionBreak onClose={makeExerciseCloseHandler(session.toggleSelfCompassion)} />}
+
+      {/* Exercise overlays — one loop instead of 9 repeated blocks */}
+      {Object.entries(EXERCISE_COMPONENTS).map(([id, ExComponent]) =>
+        session.activeExercises[id] ? (
+          <ExComponent key={id} onClose={() => handleExerciseClose(id)} />
+        ) : null
+      )}
+
       {session.errorMessage && <ErrorToast message={session.errorMessage} onDismiss={session.dismissError} />}
     </div>
   );
-
-  function crisisResources() {
-    if (!session.crisisResources) return null;
-    return <CrisisModal resources={session.crisisResources} onDismiss={session.dismissCrisis} />;
-  }
 }
 
 export default App;

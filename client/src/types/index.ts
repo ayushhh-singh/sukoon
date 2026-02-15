@@ -5,6 +5,7 @@ export type SessionPhase =
   | 'profile-select'
   | 'onboarding'
   | 'concern-select'
+  | 'prior-session'
   | 'pre-mood'
   | 'pre-assessment'
   | 'ready'

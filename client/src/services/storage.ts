@@ -122,9 +122,7 @@ export const StorageService = {
   },
 
   saveLastConcerns(profileId: string, concerns: string[]): void {
-    if (concerns.length > 0) {
-      try { localStorage.setItem(`sukoon_last_concerns_${profileId}`, JSON.stringify(concerns)); } catch { /* */ }
-    }
+    if (concerns.length > 0) setItem(`sukoon_last_concerns_${profileId}`, concerns);
   },
 
   // Consent

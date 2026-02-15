@@ -55,19 +55,13 @@ export function useSession() {
   // History overlay
   const [showHistory, setShowHistory] = useState(false);
 
-  // Exercises panel toggle
+  // Exercises panel + individual exercise overlay state
   const [showExercisesPanel, setShowExercisesPanel] = useState(false);
+  const [activeExercises, setActiveExercises] = useState<Record<string, boolean>>({});
 
-  // Individual exercise toggles
-  const [showBreathing, setShowBreathing] = useState(false);
-  const [showGrounding, setShowGrounding] = useState(false);
-  const [showPMR, setShowPMR] = useState(false);
-  const [showThoughtRecord, setShowThoughtRecord] = useState(false);
-  const [showAffirmations, setShowAffirmations] = useState(false);
-  const [showBodyScan, setShowBodyScan] = useState(false);
-  const [showVisualization, setShowVisualization] = useState(false);
-  const [showGratitude, setShowGratitude] = useState(false);
-  const [showSelfCompassion, setShowSelfCompassion] = useState(false);
+  // Prior session linker
+  const [linkedPriorSession, setLinkedPriorSession] = useState<SessionSummary | null>(null);
+  const [priorSessions, setPriorSessions] = useState<SessionSummary[]>([]);
 
   const aiTranscriptBuffer = useRef('');
   const transcriptIdCounter = useRef(0);
@@ -75,7 +69,7 @@ export function useSession() {
   const summaryDataRef = useRef<ServerMessage['summary']>(undefined);
 
   const { status, connect, disconnect, send, onMessage } = useWebSocket();
-  const { isCapturing, volume: micVolume, startCapture, stopCapture } = useAudioCapture();
+  const { isCapturing, isMuted, volume: micVolume, startCapture, stopCapture, toggleMute } = useAudioCapture();
   const { isPlaying, playChunk, stop: stopPlayback, volume: aiVolume } = useAudioPlayback();
 
   useEffect(() => {
@@ -182,7 +176,13 @@ export function useSession() {
     setSelectedAssessment(selectAssessmentForConcerns(concerns));
     const activeId = StorageService.getActiveProfileId();
     if (activeId) StorageService.saveLastConcerns(activeId, concerns);
-    setPhase('pre-mood');
+    const past = activeId ? StorageService.getSessionsForUser(activeId) : [];
+    if (past.length > 0) {
+      setPriorSessions(past);
+      setPhase('prior-session');
+    } else {
+      setPhase('pre-mood');
+    }
   }, []);
 
   const skipSessionConcerns = useCallback(() => {
@@ -194,6 +194,22 @@ export function useSession() {
     } else {
       setSessionConcerns([]);
     }
+    const past = activeId ? StorageService.getSessionsForUser(activeId) : [];
+    if (past.length > 0) {
+      setPriorSessions(past);
+      setPhase('prior-session');
+    } else {
+      setPhase('pre-mood');
+    }
+  }, []);
+
+  const selectPriorSession = useCallback((session: SessionSummary) => {
+    setLinkedPriorSession(session);
+    setPhase('pre-mood');
+  }, []);
+
+  const skipPriorSession = useCallback(() => {
+    setLinkedPriorSession(null);
     setPhase('pre-mood');
   }, []);
 
@@ -283,6 +299,17 @@ export function useSession() {
         if (prev.length > 0) assessCtx.previousScores = prev;
       }
 
+      const priorCtx = linkedPriorSession ? {
+        date: linkedPriorSession.date,
+        issuesIdentified: linkedPriorSession.issuesIdentified,
+        suggestedFocusAreas: linkedPriorSession.suggestedFocusAreas,
+        copingStrategies: linkedPriorSession.copingStrategies,
+        homeworkAssignments: linkedPriorSession.homeworkAssignments,
+        wayForward: linkedPriorSession.wayForward,
+        clinicalImpression: linkedPriorSession.clinicalImpression,
+        preliminaryDiagnosis: linkedPriorSession.preliminaryDiagnosis,
+      } : undefined;
+
       setTimeout(() => {
         send({
           type: 'session.start',
@@ -294,13 +321,14 @@ export function useSession() {
                 goalForToday: sessionGoal.trim() || undefined,
               }
             : undefined,
+          priorSessionContext: priorCtx,
         });
       }, 500);
     } catch {
       setErrorMessage('Could not access your microphone. Please allow microphone access and try again.');
       setPhase('ready');
     }
-  }, [connect, startCapture, send, preAssessmentResult, onboardingData, sessionConcerns, sessionGoal]);
+  }, [connect, startCapture, send, preAssessmentResult, onboardingData, sessionConcerns, sessionGoal, linkedPriorSession]);
 
   const endSession = useCallback(() => {
     stopCapture();
@@ -382,6 +410,8 @@ export function useSession() {
     setSessionGoal('');
     setSessionConcerns([]);
     setTranscripts([]);
+    setLinkedPriorSession(null);
+    setPriorSessions([]);
     summaryDataRef.current = undefined;
     sessionIdRef.current = `session-${Date.now()}`;
   }, []);
@@ -410,30 +440,25 @@ export function useSession() {
   const closeHistory = useCallback(() => setShowHistory(false), []);
 
   const toggleExercisesPanel = useCallback(() => setShowExercisesPanel(p => !p), []);
-  const toggleBreathing = useCallback(() => setShowBreathing(p => !p), []);
-  const toggleGrounding = useCallback(() => setShowGrounding(p => !p), []);
-  const togglePMR = useCallback(() => setShowPMR(p => !p), []);
-  const toggleThoughtRecord = useCallback(() => setShowThoughtRecord(p => !p), []);
-  const toggleAffirmations = useCallback(() => setShowAffirmations(p => !p), []);
-  const toggleBodyScan = useCallback(() => setShowBodyScan(p => !p), []);
-  const toggleVisualization = useCallback(() => setShowVisualization(p => !p), []);
-  const toggleGratitude = useCallback(() => setShowGratitude(p => !p), []);
-  const toggleSelfCompassion = useCallback(() => setShowSelfCompassion(p => !p), []);
+  const toggleExercise = useCallback((id: string) => {
+    setActiveExercises(p => ({ ...p, [id]: !p[id] }));
+  }, []);
   const onTimerReminder = useCallback((msg: string) => setErrorMessage(msg), []);
   const onDurationUpdate = useCallback((s: number) => setSessionDuration(s), []);
 
   return {
     phase, connectionStatus: status, speakingState, transcripts,
     crisisResources, errorMessage, micVolume, aiVolume, currentAiText,
+    isMuted, toggleMute,
     sessionDuration, onboardingData, preAssessmentResult, previousAssessmentResult,
     preMood, postMood, sessionSummary, selectedAssessment,
-    viewingResults, showExercisesPanel,
-    showBreathing, showGrounding, showPMR, showThoughtRecord, showAffirmations, showBodyScan,
-    showVisualization, showGratitude, showSelfCompassion,
-    sessionGoal, setSessionGoal,
+    viewingResults, showExercisesPanel, activeExercises,
+    sessionConcerns, sessionGoal, setSessionGoal,
     ambientSound, setAmbientSound,
     bookmarks, toggleBookmark,
     showHistory, openHistory, closeHistory,
+
+    priorSessions, selectPriorSession, skipPriorSession,
 
     acceptConsent, selectProfile, startNewUserFlow, switchUser, completeOnboarding, skipOnboarding,
     completeSessionConcerns, skipSessionConcerns,
@@ -441,9 +466,7 @@ export function useSession() {
     startSession, endSession,
     selectPostMood,
     saveReflection, newSession, dismissError, dismissCrisis,
-    toggleExercisesPanel,
-    toggleBreathing, toggleGrounding, togglePMR, toggleThoughtRecord, toggleAffirmations, toggleBodyScan,
-    toggleVisualization, toggleGratitude, toggleSelfCompassion,
+    toggleExercisesPanel, toggleExercise,
     onTimerReminder, onDurationUpdate,
   };
 }
