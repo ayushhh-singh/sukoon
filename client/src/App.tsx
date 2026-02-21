@@ -30,6 +30,11 @@ import { BodyScanMeditation } from './components/exercises/BodyScanMeditation';
 import { MindfulVisualization } from './components/exercises/MindfulVisualization';
 import { GratitudeJournal } from './components/exercises/GratitudeJournal';
 import { SelfCompassionBreak } from './components/exercises/SelfCompassionBreak';
+import { EmotionWheel } from './components/exercises/EmotionWheel';
+import { SleepHygiene } from './components/exercises/SleepHygiene';
+import { WorryTime } from './components/exercises/WorryTime';
+import { ValuesCardSort } from './components/exercises/ValuesCardSort';
+import { MindfulWalking } from './components/exercises/MindfulWalking';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageToggle } from './components/LanguageToggle';
 import { HistoryScreen } from './components/history/HistoryScreen';
@@ -38,7 +43,10 @@ import { ProgressDashboard } from './components/retention/ProgressDashboard';
 import { TherapistLogin } from './components/therapist/TherapistLogin';
 import { TherapistDashboard } from './components/therapist/TherapistDashboard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
-import { Layers, History, Volume2, BarChart3, Settings } from 'lucide-react';
+import { JournalPanel } from './components/journal/JournalPanel';
+import { FlowProgress } from './components/FlowProgress';
+import { DailyCheckIn } from './components/DailyCheckIn';
+import { Layers, History, Volume2, BarChart3, Settings, BookOpen } from 'lucide-react';
 import type { AmbientSound } from './types/session';
 import './App.css';
 
@@ -53,6 +61,11 @@ const EXERCISE_COMPONENTS: Record<string, React.ComponentType<{ onClose: () => v
   visualization: MindfulVisualization,
   gratitude: GratitudeJournal,
   selfCompassion: SelfCompassionBreak,
+  emotionWheel: EmotionWheel,
+  sleepHygiene: SleepHygiene,
+  worryTime: WorryTime,
+  valuesSort: ValuesCardSort,
+  mindfulWalking: MindfulWalking,
 };
 
 function App() {
@@ -127,6 +140,11 @@ function App() {
           onNewUser={session.startNewUserFlow}
           onBack={session.goBack}
         />
+      )}
+
+      {/* Flow progress indicator for pre-session steps */}
+      {['concern-select', 'pre-mood', 'pre-assessment', 'mode-select'].includes(session.phase) && (
+        <FlowProgress currentPhase={session.phase} />
       )}
 
       {/* Phase: Concern Select */}
@@ -204,6 +222,7 @@ function App() {
               {session.sessionMode === 'chat' ? 'Chat Session' : 'Voice Session'}
             </span>
           </div>
+          <DailyCheckIn />
           {session.sessionMode === 'voice' && (
             <VoiceOrb speakingState="idle" micVolume={0} aiVolume={0} />
           )}
@@ -260,6 +279,10 @@ function App() {
           </div>
 
           <div className="ready-secondary-actions">
+            <button className="ready-side-btn" onClick={session.openJournal} title="Journal">
+              <BookOpen size={18} />
+              <span>Journal</span>
+            </button>
             <button className="ready-side-btn" onClick={session.openProgress} title="Your Progress">
               <BarChart3 size={18} />
               <span>Progress</span>
@@ -330,6 +353,7 @@ function App() {
           summary={session.sessionSummary}
           onSaveReflection={session.saveReflection}
           onNewSession={session.newSession}
+          onGoHome={session.goHome}
           bookmarks={session.bookmarks}
           onToggleBookmark={session.toggleBookmark}
           onOpenHistory={session.openHistory}
@@ -374,6 +398,9 @@ function App() {
           onClose={session.closeSettings}
           onProfileUpdated={session.refreshProfile}
         />
+      )}
+      {session.showJournal && (
+        <JournalPanel onClose={session.closeJournal} />
       )}
       {session.crisisResources && (
         <CrisisModal resources={session.crisisResources} onDismiss={session.dismissCrisis} />

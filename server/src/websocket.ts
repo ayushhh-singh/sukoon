@@ -553,7 +553,8 @@ function startChatSession(session: Session): void {
     (error) => {
       session.isResponseActive = false;
       console.error(`[Session ${session.id}] Chat greeting error:`, error);
-      sendToClient(session.clientWs, { type: 'error', message: 'Failed to start chat session.' });
+      sendToClient(session.clientWs, { type: 'error', message: `Failed to start chat session: ${error}` });
+      sendToClient(session.clientWs, { type: 'session.status', status: 'error' });
     },
   );
 }
@@ -590,7 +591,7 @@ function handleChatMessage(session: Session, userText: string): void {
     (error) => {
       session.isResponseActive = false;
       console.error(`[Session ${session.id}] Chat response error:`, error);
-      sendToClient(session.clientWs, { type: 'error', message: 'Failed to generate response.' });
+      sendToClient(session.clientWs, { type: 'error', message: `Failed to generate response: ${error}` });
     },
   );
 }

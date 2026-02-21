@@ -26,4 +26,7 @@ server.listen(PORT, () => {
   console.log(`[Sukoon] Server running on port ${PORT}`);
   console.log(`[Sukoon] WebSocket ready for connections`);
   console.log(`[Sukoon] Accepting clients from ${CLIENT_URL}`);
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn(`[Sukoon] WARNING: OPENAI_API_KEY not set — chat and voice sessions will fail`);
+  }
 });

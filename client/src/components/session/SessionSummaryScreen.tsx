@@ -12,12 +12,13 @@ interface SessionSummaryScreenProps {
   summary: SessionSummary;
   onSaveReflection: (text: string) => void;
   onNewSession: () => void;
+  onGoHome: () => void;
   bookmarks: BookmarkedStrategy[];
   onToggleBookmark: (strategy: BookmarkedStrategy) => void;
   onOpenHistory: () => void;
 }
 
-export function SessionSummaryScreen({ summary, onSaveReflection, onNewSession, bookmarks, onToggleBookmark, onOpenHistory }: SessionSummaryScreenProps) {
+export function SessionSummaryScreen({ summary, onSaveReflection, onNewSession, onGoHome, bookmarks, onToggleBookmark, onOpenHistory }: SessionSummaryScreenProps) {
   const [reflection, setReflection] = useState(summary.userReflection || '');
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -310,6 +311,9 @@ export function SessionSummaryScreen({ summary, onSaveReflection, onNewSession, 
           </button>
           <button className="btn-primary" onClick={onNewSession}>
             <RotateCcw size={16} /> New Session
+          </button>
+          <button className="btn-secondary" onClick={onGoHome}>
+            Home
           </button>
         </div>
       </div>

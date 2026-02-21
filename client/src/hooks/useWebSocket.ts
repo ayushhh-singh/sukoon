@@ -15,17 +15,22 @@ interface UseWebSocketReturn {
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const messageHandlerRef = useRef<((message: ServerMessage) => void) | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
   const [status, setStatus] = useState<ConnectionStatus>('idle');
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+    intentionalCloseRef.current = false;
+    reconnectAttemptsRef.current = 0;
     setStatus('connecting');
     const ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
       console.log('[WS] Connected to server');
+      reconnectAttemptsRef.current = 0;
       // Don't set connected yet — wait for session.status from OpenAI
     };
 
@@ -51,10 +56,17 @@ export function useWebSocket(): UseWebSocketReturn {
       }
     };
 
-    ws.onclose = () => {
-      console.log('[WS] Disconnected');
+    ws.onclose = (event: CloseEvent) => {
+      console.log('[WS] Disconnected', event.code, event.reason);
       setStatus('disconnected');
       wsRef.current = null;
+
+      // Auto-reconnect on unexpected close (not user-initiated)
+      if (!intentionalCloseRef.current && event.code !== 1000 && reconnectAttemptsRef.current < 3) {
+        reconnectAttemptsRef.current++;
+        console.log(`[WS] Reconnect attempt ${reconnectAttemptsRef.current}/3`);
+        setTimeout(() => connect(), 2000 * reconnectAttemptsRef.current);
+      }
     };
 
     ws.onerror = () => {
@@ -66,8 +78,10 @@ export function useWebSocket(): UseWebSocketReturn {
   }, []);
 
   const disconnect = useCallback(() => {
+    intentionalCloseRef.current = true;
+    reconnectAttemptsRef.current = 0;
     if (wsRef.current) {
-      wsRef.current.close();
+      wsRef.current.close(1000, 'User disconnected');
       wsRef.current = null;
     }
     setStatus('idle');

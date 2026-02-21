@@ -62,6 +62,11 @@ export const ChatSession: React.FC<ChatSessionProps> = ({
       </div>
 
       <div className="chat-messages">
+        {!isConnected && messages.length > 0 && (
+          <div className="chat-error-banner">
+            Connection lost. Please end the session and try again.
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="chat-empty">
             <p>Dr. Aria is joining...</p>

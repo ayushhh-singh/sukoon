@@ -72,6 +72,9 @@ export function useSession() {
   // Therapist dashboard overlay
   const [showTherapist, setShowTherapist] = useState(false);
 
+  // Journal overlay
+  const [showJournal, setShowJournal] = useState(false);
+
   // Prior session linker
   const [linkedPriorSession, setLinkedPriorSession] = useState<SessionSummary | null>(null);
   const [priorSessions, setPriorSessions] = useState<SessionSummary[]>([]);
@@ -475,8 +478,28 @@ export function useSession() {
     });
   }, []);
 
-  // New session goes back to role-select
+  // New session keeps user profile, resets only session-specific state
   const newSession = useCallback(() => {
+    setPreMood(null);
+    setPostMood(null);
+    setPreAssessmentResult(null);
+    setPreviousAssessmentResult(null);
+    setSessionSummary(null);
+    setViewingResults(false);
+    setSessionGoal('');
+    setSessionConcerns([]);
+    setTranscripts([]);
+    setChatMessages([]);
+    setSessionMode('voice');
+    setLinkedPriorSession(null);
+    setPriorSessions([]);
+    summaryDataRef.current = undefined;
+    sessionIdRef.current = `session-${Date.now()}`;
+    setPhase('concern-select');
+  }, []);
+
+  // Full reset back to role-select (logout / home)
+  const goHome = useCallback(() => {
     setPhase('role-select');
     setUserRole(null);
     setAuthenticatedDoctor(null);
@@ -532,6 +555,10 @@ export function useSession() {
   const closeProgress = useCallback(() => setShowProgress(false), []);
   const openTherapist = useCallback(() => setShowTherapist(true), []);
   const closeTherapist = useCallback(() => setShowTherapist(false), []);
+
+  // Journal
+  const openJournal = useCallback(() => setShowJournal(true), []);
+  const closeJournal = useCallback(() => setShowJournal(false), []);
 
   // Settings panel
   const [showSettings, setShowSettings] = useState(false);
@@ -630,6 +657,7 @@ export function useSession() {
     showHistory, openHistory, closeHistory,
     showProgress, openProgress, closeProgress,
     showTherapist, openTherapist, closeTherapist,
+    showJournal, openJournal, closeJournal,
     showSettings, openSettings, closeSettings,
 
     // Role & doctor
@@ -648,7 +676,7 @@ export function useSession() {
     selectPreMood, completePreAssessment, skipPreAssessment, confirmPreAssessmentResults,
     startSession, endSession,
     selectPostMood,
-    saveReflection, newSession, dismissError, dismissCrisis,
+    saveReflection, newSession, goHome, dismissError, dismissCrisis,
     toggleExercisesPanel, toggleExercise,
     onTimerReminder, onDurationUpdate,
   };

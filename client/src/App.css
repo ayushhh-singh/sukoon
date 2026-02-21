@@ -6952,3 +6952,1025 @@
   text-align: left;
 }
 
+/* ============================================
+   FLOW PROGRESS INDICATOR
+   ============================================ */
+.flow-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.flow-progress-step {
+  display: flex;
+  align-items: center;
+}
+.flow-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.flow-dot.completed {
+  background: var(--accent);
+}
+.flow-dot.current {
+  background: var(--accent-light);
+  box-shadow: 0 0 8px var(--accent-light);
+  transform: scale(1.3);
+}
+.flow-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+  transition: background var(--transition-fast);
+}
+.flow-line.completed {
+  background: var(--accent);
+}
+
+/* ============================================
+   DAILY CHECK-IN WIDGET
+   ============================================ */
+.daily-checkin-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.75rem;
+}
+.checkin-streak {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #ff6b35;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.checkin-motivation {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ============================================
+   CHAT ERROR BANNER
+   ============================================ */
+.chat-error-banner {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  color: #ff6b6b;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 0.8rem;
+  margin: 0.5rem 1rem;
+}
+
+/* ============================================
+   JOURNAL PANEL
+   ============================================ */
+.journal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fade-in 0.3s ease;
+  overflow-y: auto;
+}
+.journal-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 560px;
+  max-height: min(780px, calc(100dvh - 3rem));
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  animation: page-enter 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 0.5rem;
+}
+.journal-header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.journal-close {
+  color: var(--text-muted);
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+.journal-close:hover {
+  color: var(--text-primary);
+  background: var(--surface);
+}
+.journal-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.journal-tab {
+  flex: 1;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+.journal-tab.active {
+  color: var(--accent-light);
+  border-bottom-color: var(--accent-light);
+}
+.journal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+/* New Entry */
+.journal-title-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+.journal-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+.journal-mood-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.journal-mood-btn {
+  font-size: 1.2rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  opacity: 0.5;
+}
+.journal-mood-btn.selected {
+  opacity: 1;
+  background: var(--surface);
+  transform: scale(1.2);
+}
+.journal-mood-btn:hover {
+  opacity: 0.8;
+}
+.journal-template-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.journal-template-select {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+.journal-prompts {
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.journal-prompt {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0;
+  font-style: italic;
+}
+.journal-content-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+.journal-char-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+  display: block;
+  margin-top: 0.25rem;
+}
+.journal-tags-section {
+  margin: 0.75rem 0;
+}
+.journal-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+.journal-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+.journal-tag-chip.readonly {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.journal-tag-chip button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  line-height: 1;
+}
+.journal-tag-input {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  outline: none;
+  min-width: 80px;
+  flex: 1;
+}
+.journal-save-btn {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+/* Past Entries */
+.journal-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+}
+.journal-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+}
+.journal-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+  font-size: 0.85rem;
+}
+.journal-entry-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+.journal-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.journal-entry-header:hover {
+  background: var(--bg-card);
+}
+.journal-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+.journal-entry-meta strong {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.journal-entry-mood {
+  font-size: 1rem;
+}
+.journal-entry-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.journal-entry-preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0 0.75rem 0.6rem;
+  margin: 0;
+  line-height: 1.4;
+}
+.journal-entry-expanded {
+  padding: 0 0.75rem 0.75rem;
+}
+.journal-entry-content {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  line-height: 1.5;
+  margin: 0 0 0.5rem;
+}
+.journal-entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+.journal-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: #ff6b6b;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+.journal-delete-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+}
+
+/* ============================================
+   EXERCISE: EMOTION WHEEL
+   ============================================ */
+.emotion-wheel-content {
+  text-align: center;
+}
+.emotion-primary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.emotion-primary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.25rem 0.75rem;
+  border: 2px solid;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+.emotion-primary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.emotion-primary-emoji {
+  font-size: 2rem;
+}
+.emotion-primary-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.emotion-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--accent-light);
+  margin-bottom: 0.75rem;
+  padding: 0.3rem 0;
+  transition: opacity var(--transition-fast);
+}
+.emotion-back-btn:hover {
+  opacity: 0.7;
+}
+.emotion-sub-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.emotion-sub-chip {
+  padding: 0.5rem 1rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+}
+.emotion-sub-chip:hover {
+  background: var(--surface);
+  transform: scale(1.05);
+}
+.emotion-reflect-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.emotion-reflect-emoji {
+  font-size: 1.5rem;
+}
+.emotion-reflect-label {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.emotion-reflect-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 1rem;
+}
+
+/* ============================================
+   EXERCISE: SLEEP HYGIENE
+   ============================================ */
+.sleep-container h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.sleep-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+.sleep-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  text-align: left;
+}
+.sleep-item.checked {
+  border-color: var(--accent);
+  background: rgba(77, 217, 192, 0.05);
+}
+.sleep-check-box {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all var(--transition-fast);
+}
+.sleep-item.checked .sleep-check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.sleep-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.sleep-item-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.sleep-item-tip {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.sleep-score {
+  margin: 0.75rem 0;
+}
+.sleep-score-bar {
+  height: 6px;
+  background: var(--surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.sleep-score-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.sleep-score-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.4rem;
+  display: block;
+}
+.sleep-history {
+  margin: 1rem 0;
+}
+.sleep-history h4 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.sleep-history-bars {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  height: 60px;
+}
+.sleep-history-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+.sleep-history-bar {
+  width: 100%;
+  height: 50px;
+  background: var(--surface);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+.sleep-history-bar-fill {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: height 0.3s ease;
+}
+.sleep-history-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+
+/* ============================================
+   EXERCISE: WORRY TIME
+   ============================================ */
+.worry-duration-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.worry-duration-btn {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  transition: all var(--transition-fast);
+}
+.worry-duration-btn.selected {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.worry-timer {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.worry-timer-text {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  font-variant-numeric: tabular-nums;
+}
+.worry-timer-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.worry-input-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.worry-input {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+.worry-add-btn {
+  padding: 0.5rem 0.75rem;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  transition: opacity var(--transition-fast);
+}
+.worry-add-btn:disabled {
+  opacity: 0.4;
+}
+.worry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.worry-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  text-align: left;
+}
+.worry-remove-btn {
+  color: var(--text-muted);
+  padding: 0.2rem;
+  transition: color var(--transition-fast);
+}
+.worry-remove-btn:hover {
+  color: #ff6b6b;
+}
+.worry-finish-btn {
+  width: 100%;
+}
+.worry-categorize-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+.worry-categorize-text {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+.worry-category-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+.worry-cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+}
+.worry-cat-btn.actionable {
+  color: var(--accent-light);
+  border-color: var(--accent);
+}
+.worry-cat-btn.actionable:hover {
+  background: rgba(77, 217, 192, 0.1);
+}
+.worry-cat-btn.let-go {
+  color: var(--text-secondary);
+}
+.worry-cat-btn.let-go:hover {
+  background: var(--bg-card);
+}
+.worry-next-step {
+  margin-top: 1rem;
+  text-align: left;
+}
+.worry-next-step p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.worry-summary-section {
+  text-align: left;
+  margin-bottom: 1rem;
+}
+.worry-summary-section h4 {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.worry-summary-item {
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+.worry-summary-item.actionable {
+  border-left: 3px solid var(--accent);
+}
+.worry-summary-item.let-go {
+  border-left: 3px solid var(--border);
+  opacity: 0.7;
+}
+.worry-next-step-text {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--accent-light);
+  margin-top: 0.2rem;
+}
+
+/* ============================================
+   EXERCISE: VALUES CARD SORT
+   ============================================ */
+.values-current-card {
+  margin: 1.5rem 0;
+}
+.values-card-display {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+.values-card-emoji {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.values-card-display h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.3rem;
+}
+.values-card-display p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.values-sort-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+.values-btn {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+}
+.values-btn.very {
+  color: var(--accent-light);
+  border-color: var(--accent);
+}
+.values-btn.very:hover {
+  background: rgba(77, 217, 192, 0.1);
+}
+.values-btn.somewhat {
+  color: var(--text-secondary);
+}
+.values-btn.somewhat:hover {
+  background: var(--surface);
+}
+.values-btn.less {
+  color: var(--text-muted);
+}
+.values-btn.less:hover {
+  background: var(--surface);
+}
+.values-progress {
+  margin-top: 1rem;
+}
+.values-progress-bar {
+  height: 4px;
+  background: var(--surface);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.values-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.values-sorted-summary {
+  margin: 1.5rem 0;
+}
+.values-narrow-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.values-narrow-card {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+}
+.values-narrow-card.selected {
+  border-color: var(--accent);
+  background: rgba(77, 217, 192, 0.1);
+}
+.values-narrow-card:disabled {
+  opacity: 0.3;
+}
+.values-top-display {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.values-top-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.values-reflect-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 1rem;
+}
+
+/* ============================================
+   EXERCISE: MINDFUL WALKING
+   ============================================ */
+.walking-progress {
+  height: 4px;
+  background: var(--surface);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.walking-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+.walking-path {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.walking-path-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0.3;
+  transition: all var(--transition-fast);
+}
+.walking-path-step.completed {
+  opacity: 0.6;
+}
+.walking-path-step.active {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.walking-path-emoji {
+  font-size: 1.3rem;
+}
+.walking-path-name {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+.walking-current {
+  animation: fade-in 0.5s ease;
+}
+.walking-phase-emoji {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+.walking-phase-name {
+  font-size: 1.2rem;
+  color: var(--accent-light);
+  margin-bottom: 0.5rem;
+}
+.walking-instruction {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+.walking-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.walking-phase-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--surface);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.walking-phase-fill {
+  height: 100%;
+  background: var(--accent-light);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+.walking-countdown {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+}
+.walking-overall {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1rem;
+}
+
+/* ============================================
+   EXERCISES PANEL CATEGORIES
+   ============================================ */
+.exercises-category {
+  margin-bottom: 1.25rem;
+}
+.exercises-category-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.exercise-container {
+  max-height: min(650px, calc(100dvh - 3rem));
+  overflow-y: auto;
+}
+

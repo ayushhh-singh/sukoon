@@ -2,6 +2,7 @@ import type { AssessmentResult } from '../types/assessments';
 import type { MoodEntry } from '../types/mood';
 import type { SessionSummary, OnboardingData, BookmarkedStrategy, AmbientSound, UserProfile, DoctorProfile } from '../types/session';
 import type { RetentionData, MilestoneId } from '../types/retention';
+import type { JournalEntry } from '../types/journal';
 
 const KEYS = {
   SESSIONS: 'sukoon_sessions',
@@ -319,6 +320,37 @@ export const StorageService = {
     const data = this.getRetention(profileId);
     data.schedule = schedule;
     this.saveRetention(data);
+  },
+
+  // Journal
+  getJournalEntries(profileId: string): JournalEntry[] {
+    return getItem<JournalEntry[]>(`sukoon_journal_${profileId}`, []);
+  },
+
+  saveJournalEntry(entry: JournalEntry): void {
+    const entries = this.getJournalEntries(entry.profileId);
+    const idx = entries.findIndex(e => e.id === entry.id);
+    if (idx >= 0) {
+      entries[idx] = entry;
+    } else {
+      entries.unshift(entry);
+    }
+    if (entries.length > 200) entries.length = 200;
+    setItem(`sukoon_journal_${entry.profileId}`, entries);
+  },
+
+  deleteJournalEntry(profileId: string, entryId: string): void {
+    const entries = this.getJournalEntries(profileId).filter(e => e.id !== entryId);
+    setItem(`sukoon_journal_${profileId}`, entries);
+  },
+
+  searchJournal(profileId: string, query: string): JournalEntry[] {
+    const lower = query.toLowerCase();
+    return this.getJournalEntries(profileId).filter(
+      e => e.title.toLowerCase().includes(lower) ||
+           e.content.toLowerCase().includes(lower) ||
+           e.tags.some(t => t.toLowerCase().includes(lower))
+    );
   },
 
   // Data management
