@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSession } from './hooks/useSession';
+import { useReminders } from './hooks/useReminders';
 import { ConsentScreen } from './components/ConsentScreen';
 import { ProfilePickerScreen } from './components/ProfilePickerScreen';
 import { SessionConcernPicker } from './components/SessionConcernPicker';
@@ -7,11 +8,14 @@ import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { MoodPicker } from './components/mood/MoodPicker';
 import { AssessmentScreen } from './components/assessments/AssessmentScreen';
 import { AssessmentResults } from './components/assessments/AssessmentResults';
+import { ModeSelectScreen } from './components/ModeSelectScreen';
+import { RoleSelectScreen } from './components/RoleSelectScreen';
 import { VoiceOrb } from './components/VoiceOrb';
 import { StatusBar } from './components/StatusBar';
 import { SessionTimer } from './components/session/SessionTimer';
 import { Transcript } from './components/Transcript';
 import { SessionControls } from './components/SessionControls';
+import { ChatSession } from './components/chat/ChatSession';
 import { SessionSummaryScreen } from './components/session/SessionSummaryScreen';
 import { AmbientSoundPlayer } from './components/session/AmbientSoundPlayer';
 import { CrisisModal } from './components/CrisisModal';
@@ -30,7 +34,11 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageToggle } from './components/LanguageToggle';
 import { HistoryScreen } from './components/history/HistoryScreen';
 import { PriorSessionPicker } from './components/PriorSessionPicker';
-import { Layers, History, Volume2 } from 'lucide-react';
+import { ProgressDashboard } from './components/retention/ProgressDashboard';
+import { TherapistLogin } from './components/therapist/TherapistLogin';
+import { TherapistDashboard } from './components/therapist/TherapistDashboard';
+import { SettingsPanel } from './components/settings/SettingsPanel';
+import { Layers, History, Volume2, BarChart3, Settings } from 'lucide-react';
 import type { AmbientSound } from './types/session';
 import './App.css';
 
@@ -49,6 +57,7 @@ const EXERCISE_COMPONENTS: Record<string, React.ComponentType<{ onClose: () => v
 
 function App() {
   const session = useSession();
+  useReminders();
 
   // When an exercise closes, re-open the exercises panel
   function handleExerciseClose(id: string) {
@@ -58,22 +67,57 @@ function App() {
     }
   }
 
+  // Doctor flow: role-select with doctor chosen → TherapistLogin → TherapistDashboard
+  const isDoctorFlow = session.phase === 'role-select' && session.userRole === 'doctor';
+  const isDoctorAuthed = isDoctorFlow && session.authenticatedDoctor !== null;
+
+  // Show top controls only when past role-select and not in active session
+  const showTopControls = session.phase !== 'role-select' && session.phase !== 'active';
+
   return (
     <div className="app">
-      <div className="top-controls">
-        <LanguageToggle disabled={session.phase === 'active'} />
-        {session.phase !== 'active' && session.phase !== 'consent' && session.phase !== 'profile-select' && (
-          <button className="switch-user-btn" onClick={session.switchUser} title="Switch user">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>Switch</span>
+      {showTopControls && (
+        <div className="top-controls">
+          <LanguageToggle disabled={false} />
+          {session.phase !== 'consent' && session.phase !== 'profile-select' && (
+            <button className="switch-user-btn" onClick={session.switchUser} title="Switch user">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>Switch</span>
+            </button>
+          )}
+          <button className="settings-gear-btn" onClick={session.openSettings} title="Settings">
+            <Settings size={14} />
           </button>
-        )}
-        <ThemeToggle />
-      </div>
+          <ThemeToggle />
+        </div>
+      )}
+
+      {/* Phase: Role Select */}
+      {session.phase === 'role-select' && !session.userRole && (
+        <RoleSelectScreen onSelect={session.selectRole} />
+      )}
+
+      {/* Doctor flow: Login */}
+      {isDoctorFlow && !isDoctorAuthed && (
+        <TherapistLogin
+          onAuthenticate={session.handleDoctorAuth}
+          onBack={session.goBack}
+        />
+      )}
+
+      {/* Doctor flow: Dashboard (full screen) */}
+      {isDoctorAuthed && session.authenticatedDoctor && (
+        <TherapistDashboard
+          onClose={session.handleDoctorLogout}
+          doctorUsername={session.authenticatedDoctor.username}
+          doctorDisplayName={session.authenticatedDoctor.displayName}
+          onLogout={session.handleDoctorLogout}
+        />
+      )}
 
       {/* Phase: Consent */}
       {session.phase === 'consent' && (
-        <ConsentScreen onAccept={session.acceptConsent} />
+        <ConsentScreen onAccept={session.acceptConsent} onBack={session.goBack} />
       )}
 
       {/* Phase: Profile Select */}
@@ -81,6 +125,7 @@ function App() {
         <ProfilePickerScreen
           onSelectProfile={session.selectProfile}
           onNewUser={session.startNewUserFlow}
+          onBack={session.goBack}
         />
       )}
 
@@ -90,6 +135,7 @@ function App() {
           name={session.onboardingData?.preferredName ?? ''}
           onComplete={session.completeSessionConcerns}
           onSkip={session.skipSessionConcerns}
+          onBack={session.goBack}
         />
       )}
 
@@ -100,6 +146,7 @@ function App() {
           selectedConcerns={session.sessionConcerns}
           onSelect={session.selectPriorSession}
           onSkip={session.skipPriorSession}
+          onBack={session.goBack}
         />
       )}
 
@@ -108,12 +155,13 @@ function App() {
         <OnboardingFlow
           onComplete={session.completeOnboarding}
           onSkip={session.skipOnboarding}
+          onBack={session.goBack}
         />
       )}
 
       {/* Phase: Pre-Session Mood */}
       {session.phase === 'pre-mood' && (
-        <MoodPicker context="pre-session" onSelect={session.selectPreMood} />
+        <MoodPicker context="pre-session" onSelect={session.selectPreMood} onBack={session.goBack} />
       )}
 
       {/* Phase: Pre-Session Assessment */}
@@ -123,6 +171,7 @@ function App() {
           timing="pre-session"
           onComplete={session.completePreAssessment}
           onSkip={session.skipPreAssessment}
+          onBack={session.goBack}
         />
       )}
 
@@ -136,6 +185,11 @@ function App() {
         />
       )}
 
+      {/* Phase: Mode Select */}
+      {session.phase === 'mode-select' && (
+        <ModeSelectScreen onSelect={session.selectMode} onBack={session.goBack} />
+      )}
+
       {/* Phase: Ready */}
       {session.phase === 'ready' && (
         <div className="session-screen">
@@ -146,8 +200,20 @@ function App() {
                 ? `Welcome, ${session.onboardingData.preferredName}. Ready when you are.`
                 : 'Your safe space for supportive conversations'}
             </p>
+            <span className="session-mode-badge">
+              {session.sessionMode === 'chat' ? 'Chat Session' : 'Voice Session'}
+            </span>
           </div>
-          <VoiceOrb speakingState="idle" micVolume={0} aiVolume={0} />
+          {session.sessionMode === 'voice' && (
+            <VoiceOrb speakingState="idle" micVolume={0} aiVolume={0} />
+          )}
+          {session.sessionMode === 'chat' && (
+            <div className="chat-preview-icon">
+              <div className="chat-preview-bubble">
+                <span>Ready to chat with Dr. Aria</span>
+              </div>
+            </div>
+          )}
 
           <div className="session-goal-row">
             <input
@@ -160,18 +226,20 @@ function App() {
             />
           </div>
 
-          <div className="ambient-row">
-            <Volume2 size={14} className="ambient-icon" />
-            {(['none', 'rain', 'ocean', 'forest', 'piano'] as AmbientSound[]).map(s => (
-              <button
-                key={s}
-                className={`ambient-chip ${session.ambientSound === s ? 'selected' : ''}`}
-                onClick={() => session.setAmbientSound(s)}
-              >
-                {s === 'none' ? 'Off' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
+          {session.sessionMode === 'voice' && (
+            <div className="ambient-row">
+              <Volume2 size={14} className="ambient-icon" />
+              {(['none', 'rain', 'ocean', 'forest', 'piano'] as AmbientSound[]).map(s => (
+                <button
+                  key={s}
+                  className={`ambient-chip ${session.ambientSound === s ? 'selected' : ''}`}
+                  onClick={() => session.setAmbientSound(s)}
+                >
+                  {s === 'none' ? 'Off' : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Start + side actions in one row */}
           <div className="ready-actions">
@@ -190,11 +258,18 @@ function App() {
               <span>History</span>
             </button>
           </div>
+
+          <div className="ready-secondary-actions">
+            <button className="ready-side-btn" onClick={session.openProgress} title="Your Progress">
+              <BarChart3 size={18} />
+              <span>Progress</span>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Phase: Active Session */}
-      {session.phase === 'active' && (
+      {/* Phase: Active Session — Voice */}
+      {session.phase === 'active' && session.sessionMode === 'voice' && (
         <div className="session-screen active">
           <div className="active-status-row">
             <StatusBar status={session.connectionStatus} />
@@ -217,6 +292,25 @@ function App() {
             onToggleMute={session.toggleMute}
             onStart={session.startSession}
             onEnd={session.endSession}
+          />
+        </div>
+      )}
+
+      {/* Phase: Active Session — Chat */}
+      {session.phase === 'active' && session.sessionMode === 'chat' && (
+        <div className="session-screen active chat-active">
+          <div className="active-status-row">
+            <SessionTimer
+              isActive={session.phase === 'active'}
+              onDurationUpdate={session.onDurationUpdate}
+              onReminder={session.onTimerReminder}
+            />
+          </div>
+          <ChatSession
+            messages={session.chatMessages}
+            onSendMessage={session.sendChatMessage}
+            onEnd={session.endSession}
+            isConnected={session.connectionStatus === 'connected'}
           />
         </div>
       )}
@@ -253,8 +347,8 @@ function App() {
         </div>
       )}
 
-      {/* Ambient sound during active session */}
-      {session.phase === 'active' && session.ambientSound !== 'none' && (
+      {/* Ambient sound during active voice session */}
+      {session.phase === 'active' && session.sessionMode === 'voice' && session.ambientSound !== 'none' && (
         <AmbientSoundPlayer
           sound={session.ambientSound}
           isAiSpeaking={session.speakingState === 'ai-speaking'}
@@ -267,6 +361,18 @@ function App() {
           onClose={session.closeHistory}
           bookmarks={session.bookmarks}
           onToggleBookmark={session.toggleBookmark}
+        />
+      )}
+      {session.showProgress && (
+        <ProgressDashboard onClose={session.closeProgress} />
+      )}
+      {session.showTherapist && (
+        <TherapistDashboard onClose={session.closeTherapist} />
+      )}
+      {session.showSettings && (
+        <SettingsPanel
+          onClose={session.closeSettings}
+          onProfileUpdated={session.refreshProfile}
         />
       )}
       {session.crisisResources && (

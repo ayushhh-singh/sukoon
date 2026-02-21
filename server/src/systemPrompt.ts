@@ -272,14 +272,29 @@ function buildUserPreferences(prefs: SessionContext['userPreferences']): string 
   return prompt;
 }
 
+// ---- Chat Mode Addendum ----
+const CHAT_MODE_ADDENDUM = `
+
+## Chat Mode Instructions
+This is a TEXT conversation, not voice. Adjust your style:
+- Responses can be slightly longer: 3-6 sentences when needed.
+- Use line breaks for readability.
+- You may use simple formatting like dashes for lists.
+- Do not reference audio, voice, or speaking. Do not say "I hear you" — instead say "I understand" or "That makes sense."
+- Lead exercises by describing them in text steps, not by guiding verbally.`;
+
 // ---- Main Builder ----
-export function buildSystemPrompt(context?: SessionContext): string {
+export function buildSystemPrompt(context?: SessionContext, mode: 'voice' | 'chat' = 'voice'): string {
   const sections = [
     BASE_PERSONA,
     CONTEXT_GATHERING,
     THERAPEUTIC_APPROACH,
     INTERVENTIONS,
   ];
+
+  if (mode === 'chat') {
+    sections.push(CHAT_MODE_ADDENDUM);
+  }
 
   if (context?.userPreferences) {
     sections.push(buildUserPreferences(context.userPreferences));

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { UserPlus, Trash2 } from 'lucide-react';
+import { UserPlus, Trash2, ArrowLeft } from 'lucide-react';
 import type { UserProfile } from '../types/session';
 import { StorageService } from '../services/storage';
 
 interface ProfilePickerScreenProps {
   onSelectProfile: (profile: UserProfile) => void;
   onNewUser: () => void;
+  onBack?: () => void;
 }
 
 // Warm gradient pairs — one per profile slot, cycling
@@ -28,7 +29,7 @@ function timeAgo(isoDate: string): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-export function ProfilePickerScreen({ onSelectProfile, onNewUser }: ProfilePickerScreenProps) {
+export function ProfilePickerScreen({ onSelectProfile, onNewUser, onBack }: ProfilePickerScreenProps) {
   const [profiles, setProfiles] = useState<UserProfile[]>(() => StorageService.getProfiles());
 
   function handleDelete(e: React.MouseEvent, profileId: string) {
@@ -50,6 +51,11 @@ export function ProfilePickerScreen({ onSelectProfile, onNewUser }: ProfilePicke
       <div className="pp-blob pp-blob-2" />
 
       <div className="pp-card">
+        {onBack && (
+          <button className="step-back-btn" onClick={onBack}>
+            <ArrowLeft size={16} /> Back
+          </button>
+        )}
         <div className="pp-header">
           <div className="pp-logo">
             <span>✦</span>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Clock, ChevronDown, ChevronRight, Check, SkipForward } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, Check, SkipForward, ArrowLeft } from 'lucide-react';
 import type { SessionSummary } from '../types/session';
 import { formatDuration, formatSessionDate } from '../utils/format';
 
@@ -8,6 +8,7 @@ interface PriorSessionPickerProps {
   selectedConcerns: string[];
   onSelect: (session: SessionSummary) => void;
   onSkip: () => void;
+  onBack?: () => void;
 }
 
 // Maps exact SessionConcernPicker labels → keywords to detect in session data
@@ -37,7 +38,7 @@ function sessionMatchesConcern(session: SessionSummary, concern: string): boolea
 }
 
 
-export function PriorSessionPicker({ sessions, selectedConcerns, onSelect, onSkip }: PriorSessionPickerProps) {
+export function PriorSessionPicker({ sessions, selectedConcerns, onSelect, onSkip, onBack }: PriorSessionPickerProps) {
   const sorted = useMemo(
     () => [...sessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [sessions]
@@ -86,6 +87,11 @@ export function PriorSessionPicker({ sessions, selectedConcerns, onSelect, onSki
 
   return (
     <div className="prior-session-screen">
+      {onBack && (
+        <button className="step-back-btn" onClick={onBack}>
+          <ArrowLeft size={16} /> Back
+        </button>
+      )}
       <div className="prior-session-header">
         <h2>Continue from a past session?</h2>
         <p>

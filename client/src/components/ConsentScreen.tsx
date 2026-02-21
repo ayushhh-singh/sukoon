@@ -1,17 +1,23 @@
 import { useState } from 'react';
-import { Shield, Heart, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, Heart, AlertTriangle, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 
 interface ConsentScreenProps {
   onAccept: () => void;
+  onBack?: () => void;
 }
 
-export function ConsentScreen({ onAccept }: ConsentScreenProps) {
+export function ConsentScreen({ onAccept, onBack }: ConsentScreenProps) {
   const [agreed, setAgreed] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   return (
     <div className="consent-screen">
       <div className="consent-card">
+        {onBack && (
+          <button className="step-back-btn" onClick={onBack}>
+            <ArrowLeft size={16} /> Back
+          </button>
+        )}
         <div className="consent-header">
           <div className="consent-logo">
             <Heart size={32} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, SkipForward, Heart } from 'lucide-react';
+import { ArrowRight, ArrowLeft, SkipForward, Heart } from 'lucide-react';
 import { StorageService } from '../services/storage';
 
 const CONCERN_OPTIONS = [
@@ -19,9 +19,10 @@ interface SessionConcernPickerProps {
   name: string;
   onComplete: (concerns: string[]) => void;
   onSkip: () => void;
+  onBack?: () => void;
 }
 
-export function SessionConcernPicker({ name, onComplete, onSkip }: SessionConcernPickerProps) {
+export function SessionConcernPicker({ name, onComplete, onSkip, onBack }: SessionConcernPickerProps) {
   const [lastConcerns] = useState<string[]>(() => {
     const id = StorageService.getActiveProfileId();
     return id ? StorageService.getLastConcerns(id) : [];
@@ -46,6 +47,11 @@ export function SessionConcernPicker({ name, onComplete, onSkip }: SessionConcer
   return (
     <div className="onboarding-screen">
       <div className="onboarding-card">
+        {onBack && (
+          <button className="step-back-btn" onClick={onBack}>
+            <ArrowLeft size={16} /> Back
+          </button>
+        )}
         <div className="onboarding-step">
           <div className="step-icon"><Heart size={28} /></div>
           <h2>What's on your mind today?</h2>

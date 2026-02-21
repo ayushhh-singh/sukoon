@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SkipForward, ArrowLeft } from 'lucide-react';
 import type { AssessmentConfig, AssessmentResponse } from '../../types/assessments';
 
 interface AssessmentScreenProps {
@@ -7,9 +7,10 @@ interface AssessmentScreenProps {
   timing: 'pre-session' | 'post-session';
   onComplete: (responses: AssessmentResponse[]) => void;
   onSkip: () => void;
+  onBack?: () => void;
 }
 
-export function AssessmentScreen({ config, timing, onComplete, onSkip }: AssessmentScreenProps) {
+export function AssessmentScreen({ config, timing, onComplete, onSkip, onBack }: AssessmentScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<Map<number, number>>(new Map());
 
@@ -40,6 +41,11 @@ export function AssessmentScreen({ config, timing, onComplete, onSkip }: Assessm
   return (
     <div className="assessment-screen">
       <div className="assessment-card">
+        {onBack && (
+          <button className="step-back-btn" onClick={onBack}>
+            <ArrowLeft size={16} /> Back
+          </button>
+        )}
         <div className="assessment-header">
           <h2>{config.title}</h2>
           <p className="assessment-timing">

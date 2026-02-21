@@ -12,16 +12,18 @@ import type {
   TranscriptEntry,
   CrisisResources,
   ServerMessage,
+  UserRole,
 } from '../types';
 import type { AssessmentResult, AssessmentConfig, AssessmentResponse } from '../types/assessments';
 import type { MoodEntry } from '../types/mood';
-import type { OnboardingData, SessionSummary, BookmarkedStrategy, AmbientSound, UserProfile } from '../types/session';
+import type { OnboardingData, SessionSummary, BookmarkedStrategy, AmbientSound, UserProfile, DoctorProfile } from '../types/session';
+import type { SessionMode, ChatMessage } from '../types/chat';
 
 export function useSession() {
-  // Determine initial phase
-  const [phase, setPhase] = useState<SessionPhase>(
-    StorageService.hasConsented() ? 'profile-select' : 'consent'
-  );
+  // Always start at role-select
+  const [phase, setPhase] = useState<SessionPhase>('role-select');
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [authenticatedDoctor, setAuthenticatedDoctor] = useState<DoctorProfile | null>(null);
   const [speakingState, setSpeakingState] = useState<SpeakingState>('idle');
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
   const [crisisResources, setCrisisResources] = useState<CrisisResources | null>(null);
@@ -58,6 +60,17 @@ export function useSession() {
   // Exercises panel + individual exercise overlay state
   const [showExercisesPanel, setShowExercisesPanel] = useState(false);
   const [activeExercises, setActiveExercises] = useState<Record<string, boolean>>({});
+
+  // Session mode (voice or chat)
+  const [sessionMode, setSessionMode] = useState<SessionMode>('voice');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const chatMessageIdCounter = useRef(0);
+
+  // Progress dashboard overlay
+  const [showProgress, setShowProgress] = useState(false);
+
+  // Therapist dashboard overlay
+  const [showTherapist, setShowTherapist] = useState(false);
 
   // Prior session linker
   const [linkedPriorSession, setLinkedPriorSession] = useState<SessionSummary | null>(null);
@@ -114,6 +127,35 @@ export function useSession() {
         case 'response.started':
           aiTranscriptBuffer.current = '';
           setCurrentAiText('');
+          break;
+        case 'chat.response.delta':
+          if (message.delta) {
+            setChatMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === 'ai' && last.isStreaming) {
+                return [...prev.slice(0, -1), { ...last, text: last.text + message.delta }];
+              }
+              return [...prev, {
+                id: `cm-${++chatMessageIdCounter.current}`,
+                role: 'ai', text: message.delta!, timestamp: new Date(), isStreaming: true,
+              }];
+            });
+          }
+          break;
+        case 'chat.response.done':
+          setChatMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'ai' && last.isStreaming) {
+              return [...prev.slice(0, -1), { ...last, text: message.text || last.text, isStreaming: false }];
+            }
+            return prev;
+          });
+          if (message.text) {
+            setTranscripts(prev => [...prev, {
+              id: `t-${++transcriptIdCounter.current}`, role: 'ai',
+              text: message.text!, timestamp: new Date(),
+            }]);
+          }
           break;
         case 'crisis.detected':
           if (message.resources) setCrisisResources(message.resources);
@@ -227,6 +269,7 @@ export function useSession() {
       displayName: data.preferredName !== 'there' ? data.preferredName : 'User',
       createdAt: new Date().toISOString(),
       onboarding: data,
+      doctorUsernames: data.doctorUsernames,
     };
     StorageService.saveProfile(profile);
     StorageService.setActiveProfileId(profile.id);
@@ -272,77 +315,104 @@ export function useSession() {
     setViewingResults(true);
   }, [selectedAssessment]);
 
-  const skipPreAssessment = useCallback(() => setPhase('ready'), []);
+  const skipPreAssessment = useCallback(() => setPhase('mode-select'), []);
 
   const confirmPreAssessmentResults = useCallback(() => {
     setViewingResults(false);
+    setPhase('mode-select');
+  }, []);
+
+  const selectMode = useCallback((mode: SessionMode) => {
+    setSessionMode(mode);
     setPhase('ready');
   }, []);
 
+  const buildSessionContext = useCallback(() => {
+    const assessCtx: Record<string, unknown> = {};
+    if (preAssessmentResult) {
+      const key = preAssessmentResult.type.toLowerCase();
+      assessCtx[`${key}Score`] = preAssessmentResult.totalScore;
+      assessCtx[`${key}Severity`] = preAssessmentResult.severity;
+      const prev = StorageService.getAssessments()
+        .filter(a => a.type === preAssessmentResult.type && a.id !== preAssessmentResult.id)
+        .slice(-5)
+        .map(a => ({ type: a.type, score: a.totalScore, date: a.completedAt.split('T')[0] }));
+      if (prev.length > 0) assessCtx.previousScores = prev;
+    }
+
+    const priorCtx = linkedPriorSession ? {
+      date: linkedPriorSession.date,
+      issuesIdentified: linkedPriorSession.issuesIdentified,
+      suggestedFocusAreas: linkedPriorSession.suggestedFocusAreas,
+      copingStrategies: linkedPriorSession.copingStrategies,
+      homeworkAssignments: linkedPriorSession.homeworkAssignments,
+      wayForward: linkedPriorSession.wayForward,
+      clinicalImpression: linkedPriorSession.clinicalImpression,
+      preliminaryDiagnosis: linkedPriorSession.preliminaryDiagnosis,
+    } : undefined;
+
+    return {
+      assessmentContext: Object.keys(assessCtx).length > 0 ? assessCtx : undefined,
+      userPreferences: onboardingData
+        ? {
+            ...onboardingData,
+            primaryConcerns: sessionConcerns.length > 0 ? sessionConcerns : onboardingData.primaryConcerns,
+            goalForToday: sessionGoal.trim() || undefined,
+          }
+        : undefined,
+      priorSessionContext: priorCtx,
+    };
+  }, [preAssessmentResult, onboardingData, sessionConcerns, sessionGoal, linkedPriorSession]);
+
   const startSession = useCallback(async () => {
-    try {
+    if (sessionMode === 'chat') {
+      // Chat mode — no microphone needed
       connect();
       setPhase('active');
-      await startCapture((base64: string) => {
-        send({ type: 'audio.append', audio: base64 });
-      });
-
-      const assessCtx: Record<string, unknown> = {};
-      if (preAssessmentResult) {
-        const key = preAssessmentResult.type.toLowerCase();
-        assessCtx[`${key}Score`] = preAssessmentResult.totalScore;
-        assessCtx[`${key}Severity`] = preAssessmentResult.severity;
-        const prev = StorageService.getAssessments()
-          .filter(a => a.type === preAssessmentResult.type && a.id !== preAssessmentResult.id)
-          .slice(-5)
-          .map(a => ({ type: a.type, score: a.totalScore, date: a.completedAt.split('T')[0] }));
-        if (prev.length > 0) assessCtx.previousScores = prev;
-      }
-
-      const priorCtx = linkedPriorSession ? {
-        date: linkedPriorSession.date,
-        issuesIdentified: linkedPriorSession.issuesIdentified,
-        suggestedFocusAreas: linkedPriorSession.suggestedFocusAreas,
-        copingStrategies: linkedPriorSession.copingStrategies,
-        homeworkAssignments: linkedPriorSession.homeworkAssignments,
-        wayForward: linkedPriorSession.wayForward,
-        clinicalImpression: linkedPriorSession.clinicalImpression,
-        preliminaryDiagnosis: linkedPriorSession.preliminaryDiagnosis,
-      } : undefined;
-
+      setChatMessages([]);
       setTimeout(() => {
-        send({
-          type: 'session.start',
-          assessmentContext: Object.keys(assessCtx).length > 0 ? assessCtx : undefined,
-          userPreferences: onboardingData
-            ? {
-                ...onboardingData,
-                primaryConcerns: sessionConcerns.length > 0 ? sessionConcerns : onboardingData.primaryConcerns,
-                goalForToday: sessionGoal.trim() || undefined,
-              }
-            : undefined,
-          priorSessionContext: priorCtx,
-        });
+        send({ type: 'chat.start', ...buildSessionContext() });
       }, 500);
-    } catch {
-      setErrorMessage('Could not access your microphone. Please allow microphone access and try again.');
-      setPhase('ready');
+    } else {
+      // Voice mode — existing behavior
+      try {
+        connect();
+        setPhase('active');
+        await startCapture((base64: string) => {
+          send({ type: 'audio.append', audio: base64 });
+        });
+        setTimeout(() => {
+          send({ type: 'session.start', ...buildSessionContext() });
+        }, 500);
+      } catch {
+        setErrorMessage('Could not access your microphone. Please allow microphone access and try again.');
+        setPhase('ready');
+      }
     }
-  }, [connect, startCapture, send, preAssessmentResult, onboardingData, sessionConcerns, sessionGoal, linkedPriorSession]);
+  }, [sessionMode, connect, startCapture, send, buildSessionContext]);
+
+  const sendChatMessage = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setChatMessages(prev => [...prev, {
+      id: `cm-${++chatMessageIdCounter.current}`,
+      role: 'user', text: trimmed, timestamp: new Date(),
+    }]);
+    send({ type: 'chat.message', text: trimmed });
+  }, [send]);
 
   const endSession = useCallback(() => {
-    stopCapture();
-    stopPlayback();
+    if (sessionMode === 'voice') {
+      stopCapture();
+      stopPlayback();
+    }
     send({ type: 'session.end' });
-    // Move to post-mood immediately so the user isn't blocked waiting
     setPhase('post-mood');
     setSpeakingState('idle');
-    // Keep WebSocket open for up to 25s so the server can deliver the
-    // AI-generated summary before we close the connection.
     setTimeout(() => {
       disconnect();
     }, 25000);
-  }, [stopCapture, stopPlayback, send, disconnect]);
+  }, [sessionMode, stopCapture, stopPlayback, send, disconnect]);
 
   // Post-mood now goes directly to summary (rating phase removed)
   const selectPostMood = useCallback((mood: MoodEntry) => {
@@ -360,7 +430,7 @@ export function useSession() {
     const summary: SessionSummary = {
       id: `summary-${Date.now()}`, sessionId: sessionIdRef.current,
       userId: StorageService.getActiveProfileId() ?? undefined,
-      date: new Date().toISOString(), duration: sessionDuration,
+      date: new Date().toISOString(), duration: sessionDuration, mode: sessionMode,
       keyTakeaways: sd?.keyTakeaways || [],
       copingStrategies: sd?.copingStrategies || [],
       homeworkAssignments: sd?.homeworkAssignments || [],
@@ -382,6 +452,13 @@ export function useSession() {
     };
     setSessionSummary(summary);
     StorageService.saveSession(summary);
+
+    // Update streak and milestones
+    const activeId = StorageService.getActiveProfileId();
+    if (activeId) {
+      StorageService.updateStreak(activeId);
+      StorageService.checkAndUnlockMilestones(activeId);
+    }
   }
 
   const saveReflection = useCallback((text: string) => {
@@ -398,9 +475,11 @@ export function useSession() {
     });
   }, []);
 
-  // New session goes back to profile picker — no reload needed
+  // New session goes back to role-select
   const newSession = useCallback(() => {
-    setPhase('profile-select');
+    setPhase('role-select');
+    setUserRole(null);
+    setAuthenticatedDoctor(null);
     setPreMood(null);
     setPostMood(null);
     setPreAssessmentResult(null);
@@ -410,6 +489,8 @@ export function useSession() {
     setSessionGoal('');
     setSessionConcerns([]);
     setTranscripts([]);
+    setChatMessages([]);
+    setSessionMode('voice');
     setLinkedPriorSession(null);
     setPriorSessions([]);
     summaryDataRef.current = undefined;
@@ -446,6 +527,96 @@ export function useSession() {
   const onTimerReminder = useCallback((msg: string) => setErrorMessage(msg), []);
   const onDurationUpdate = useCallback((s: number) => setSessionDuration(s), []);
 
+  // Progress & Therapist dashboard
+  const openProgress = useCallback(() => setShowProgress(true), []);
+  const closeProgress = useCallback(() => setShowProgress(false), []);
+  const openTherapist = useCallback(() => setShowTherapist(true), []);
+  const closeTherapist = useCallback(() => setShowTherapist(false), []);
+
+  // Settings panel
+  const [showSettings, setShowSettings] = useState(false);
+  const openSettings = useCallback(() => setShowSettings(true), []);
+  const closeSettings = useCallback(() => setShowSettings(false), []);
+
+  // Role selection
+  const selectRole = useCallback((role: UserRole) => {
+    setUserRole(role);
+    if (role === 'patient') {
+      setPhase(StorageService.hasConsented() ? 'profile-select' : 'consent');
+    }
+    // For 'doctor', App.tsx will render TherapistLogin based on userRole
+  }, []);
+
+  const handleDoctorAuth = useCallback((doctor: DoctorProfile) => {
+    setAuthenticatedDoctor(doctor);
+  }, []);
+
+  const handleDoctorLogout = useCallback(() => {
+    setAuthenticatedDoctor(null);
+    setUserRole(null);
+    setPhase('role-select');
+    sessionStorage.removeItem('sukoon_therapist_auth');
+  }, []);
+
+  // Refresh profile data after settings change
+  const refreshProfile = useCallback(() => {
+    const profile = StorageService.getActiveProfile();
+    if (profile) {
+      setOnboardingData(profile.onboarding);
+    }
+  }, []);
+
+  // Go back to previous phase
+  const goBack = useCallback(() => {
+    switch (phase) {
+      case 'role-select':
+        // Back from doctor login → reset to role selection root
+        setUserRole(null);
+        setAuthenticatedDoctor(null);
+        break;
+      case 'consent':
+        setUserRole(null);
+        setPhase('role-select');
+        break;
+      case 'profile-select':
+        if (StorageService.hasConsented()) {
+          setUserRole(null);
+          setPhase('role-select');
+        } else {
+          setPhase('consent');
+        }
+        break;
+      case 'onboarding':
+        setPhase('profile-select');
+        break;
+      case 'concern-select':
+        setPhase('profile-select');
+        break;
+      case 'prior-session':
+        setPhase('concern-select');
+        break;
+      case 'pre-mood':
+        if (priorSessions.length > 0) {
+          setPhase('prior-session');
+        } else {
+          setPhase('concern-select');
+        }
+        break;
+      case 'pre-assessment':
+        setViewingResults(false);
+        setPhase('pre-mood');
+        break;
+      case 'mode-select':
+        setPhase('pre-assessment');
+        break;
+      case 'ready':
+        setPhase('mode-select');
+        break;
+      default:
+        break;
+    }
+  }, [phase, priorSessions]);
+
   return {
     phase, connectionStatus: status, speakingState, transcripts,
     crisisResources, errorMessage, micVolume, aiVolume, currentAiText,
@@ -457,6 +628,18 @@ export function useSession() {
     ambientSound, setAmbientSound,
     bookmarks, toggleBookmark,
     showHistory, openHistory, closeHistory,
+    showProgress, openProgress, closeProgress,
+    showTherapist, openTherapist, closeTherapist,
+    showSettings, openSettings, closeSettings,
+
+    // Role & doctor
+    userRole, selectRole, authenticatedDoctor, handleDoctorAuth, handleDoctorLogout,
+
+    // Chat mode
+    sessionMode, selectMode, chatMessages, sendChatMessage,
+
+    // Navigation
+    goBack, refreshProfile,
 
     priorSessions, selectPriorSession, skipPriorSession,
 

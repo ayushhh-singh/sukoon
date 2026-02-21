@@ -1,6 +1,7 @@
 import type { AssessmentResult } from '../types/assessments';
 import type { MoodEntry } from '../types/mood';
-import type { SessionSummary, OnboardingData, BookmarkedStrategy, AmbientSound, UserProfile } from '../types/session';
+import type { SessionSummary, OnboardingData, BookmarkedStrategy, AmbientSound, UserProfile, DoctorProfile } from '../types/session';
+import type { RetentionData, MilestoneId } from '../types/retention';
 
 const KEYS = {
   SESSIONS: 'sukoon_sessions',
@@ -11,6 +12,9 @@ const KEYS = {
   AMBIENT: 'sukoon_ambient',
   PROFILES: 'sukoon_profiles',
   ACTIVE_PROFILE: 'sukoon_active_profile',
+  DOCTORS: 'sukoon_doctors',
+  ACTIVE_DOCTOR: 'sukoon_active_doctor',
+  USER_ROLE: 'sukoon_user_role',
 } as const;
 
 const MAX_SESSIONS = 100;
@@ -116,6 +120,57 @@ export const StorageService = {
     return this.getActiveProfile()?.onboarding ?? null;
   },
 
+  // Doctor Profiles
+  getDoctors(): DoctorProfile[] {
+    return getItem<DoctorProfile[]>(KEYS.DOCTORS, []);
+  },
+
+  saveDoctor(doctor: DoctorProfile): void {
+    const doctors = this.getDoctors();
+    const idx = doctors.findIndex(d => d.id === doctor.id);
+    if (idx >= 0) {
+      doctors[idx] = doctor;
+    } else {
+      doctors.push(doctor);
+    }
+    setItem(KEYS.DOCTORS, doctors);
+  },
+
+  getDoctorByUsername(username: string): DoctorProfile | null {
+    return this.getDoctors().find(d => d.username.toLowerCase() === username.toLowerCase()) ?? null;
+  },
+
+  getActiveDoctorId(): string | null {
+    return localStorage.getItem(KEYS.ACTIVE_DOCTOR);
+  },
+
+  setActiveDoctorId(id: string): void {
+    localStorage.setItem(KEYS.ACTIVE_DOCTOR, id);
+  },
+
+  getActiveDoctor(): DoctorProfile | null {
+    const id = this.getActiveDoctorId();
+    if (!id) return null;
+    return this.getDoctors().find(d => d.id === id) ?? null;
+  },
+
+  // Role
+  getUserRole(): 'patient' | 'doctor' | null {
+    return localStorage.getItem(KEYS.USER_ROLE) as 'patient' | 'doctor' | null;
+  },
+
+  setUserRole(role: 'patient' | 'doctor'): void {
+    localStorage.setItem(KEYS.USER_ROLE, role);
+  },
+
+  // Get patients linked to a specific doctor username
+  getPatientsForDoctor(doctorUsername: string): UserProfile[] {
+    const lower = doctorUsername.toLowerCase();
+    return this.getProfiles().filter(
+      p => p.doctorUsernames?.some(d => d.toLowerCase() === lower)
+    );
+  },
+
   // Last session concerns per profile (used to pre-fill concern picker)
   getLastConcerns(profileId: string): string[] {
     return getItem<string[]>(`sukoon_last_concerns_${profileId}`, []);
@@ -163,6 +218,107 @@ export const StorageService = {
 
   saveAmbientSound(sound: AmbientSound): void {
     setItem(KEYS.AMBIENT, sound);
+  },
+
+  // Retention
+  getRetention(profileId: string): RetentionData {
+    const key = `sukoon_retention_${profileId}`;
+    return getItem<RetentionData>(key, {
+      profileId,
+      streak: { currentStreak: 0, longestStreak: 0, lastSessionDate: '' },
+      milestones: {},
+      schedule: [],
+      lastReminderShown: null,
+    });
+  },
+
+  saveRetention(data: RetentionData): void {
+    setItem(`sukoon_retention_${data.profileId}`, data);
+  },
+
+  updateStreak(profileId: string): void {
+    const data = this.getRetention(profileId);
+    const today = new Date().toISOString().split('T')[0];
+    const last = data.streak.lastSessionDate;
+
+    if (last === today) {
+      // Already counted today
+      this.saveRetention(data);
+      return;
+    }
+
+    if (last) {
+      const lastDate = new Date(last);
+      const todayDate = new Date(today);
+      const diffMs = todayDate.getTime() - lastDate.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        data.streak.currentStreak += 1;
+      } else {
+        data.streak.currentStreak = 1;
+      }
+    } else {
+      data.streak.currentStreak = 1;
+    }
+
+    if (data.streak.currentStreak > data.streak.longestStreak) {
+      data.streak.longestStreak = data.streak.currentStreak;
+    }
+    data.streak.lastSessionDate = today;
+    this.saveRetention(data);
+  },
+
+  checkAndUnlockMilestones(profileId: string): MilestoneId[] {
+    const data = this.getRetention(profileId);
+    const sessions = this.getSessionsForUser(profileId);
+    const assessments = this.getAssessments().filter(a => a.sessionId && sessions.some(s => s.sessionId === a.sessionId));
+    const now = new Date().toISOString();
+    const newlyUnlocked: MilestoneId[] = [];
+
+    const unlock = (id: MilestoneId) => {
+      if (!data.milestones[id]) {
+        data.milestones[id] = now;
+        newlyUnlocked.push(id);
+      }
+    };
+
+    // Session count milestones
+    if (sessions.length >= 1) unlock('first-session');
+    if (sessions.length >= 5) unlock('sessions-5');
+    if (sessions.length >= 10) unlock('sessions-10');
+    if (sessions.length >= 25) unlock('sessions-25');
+
+    // Streak milestones
+    if (data.streak.currentStreak >= 3) unlock('streak-3');
+    if (data.streak.currentStreak >= 7) unlock('streak-7');
+    if (data.streak.currentStreak >= 14) unlock('streak-14');
+    if (data.streak.currentStreak >= 30) unlock('streak-30');
+
+    // Assessment milestone
+    if (assessments.length >= 1) unlock('first-assessment');
+
+    // Mood improved milestone
+    const latestSession = sessions[sessions.length - 1];
+    if (latestSession?.preMood && latestSession?.postMood) {
+      if (latestSession.postMood.value > latestSession.preMood.value) {
+        unlock('mood-improved');
+      }
+    }
+
+    // Reflection milestone
+    if (sessions.some(s => s.userReflection && s.userReflection.trim().length > 0)) {
+      unlock('reflection-written');
+    }
+
+    this.saveRetention(data);
+    return newlyUnlocked;
+  },
+
+  saveSchedule(profileId: string, schedule: RetentionData['schedule']): void {
+    const data = this.getRetention(profileId);
+    data.schedule = schedule;
+    this.saveRetention(data);
   },
 
   // Data management

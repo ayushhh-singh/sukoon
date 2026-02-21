@@ -32,3 +32,6 @@ server/package-lock.json
 
 # TypeScript build info
 *.tsbuildinfo
+
+
+TODO.md

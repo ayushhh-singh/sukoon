@@ -41,6 +41,7 @@ export interface SessionSummary {
   recommendedActions?: string[];
   wayForward?: string;
 
+  mode?: 'voice' | 'chat';
   preMood: MoodEntry | null;
   postMood: MoodEntry | null;
   preAssessment: AssessmentResult | null;
@@ -59,6 +60,7 @@ export interface OnboardingData {
   voicePreference?: 'female' | 'male';
   language?: string;
   ambientSound?: AmbientSound;
+  doctorUsernames?: string[];
 }
 
 export interface UserProfile {
@@ -66,6 +68,14 @@ export interface UserProfile {
   displayName: string;
   createdAt: string;
   onboarding: OnboardingData;
+  doctorUsernames?: string[];
+}
+
+export interface DoctorProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  createdAt: string;
 }
 
 export interface SessionContext {

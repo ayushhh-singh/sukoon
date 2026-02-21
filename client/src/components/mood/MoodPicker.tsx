@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { MOOD_OPTIONS } from '../../types/mood';
 import type { MoodEntry } from '../../types/mood';
 
@@ -6,9 +7,10 @@ interface MoodPickerProps {
   context: 'pre-session' | 'post-session';
   title?: string;
   onSelect: (mood: MoodEntry) => void;
+  onBack?: () => void;
 }
 
-export function MoodPicker({ context, title, onSelect }: MoodPickerProps) {
+export function MoodPicker({ context, title, onSelect, onBack }: MoodPickerProps) {
   const [selected, setSelected] = useState<number | null>(null);
 
   function handleConfirm() {
@@ -28,6 +30,11 @@ export function MoodPicker({ context, title, onSelect }: MoodPickerProps) {
   return (
     <div className="mood-screen">
       <div className="mood-card">
+        {onBack && (
+          <button className="step-back-btn" onClick={onBack}>
+            <ArrowLeft size={16} /> Back
+          </button>
+        )}
         <h2>{title || (context === 'pre-session' ? 'How are you feeling right now?' : 'How are you feeling after your session?')}</h2>
         <p className="mood-subtitle">Select the option that best matches your current mood</p>
 

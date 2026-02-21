@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, SkipForward, User, Heart, BookOpen, AudioLines, Briefcase, Globe } from 'lucide-react';
+import { ArrowRight, ArrowLeft, SkipForward, User, Heart, BookOpen, AudioLines, Briefcase, Globe, Stethoscope } from 'lucide-react';
 import type { OnboardingData } from '../../types/session';
 
 const CONCERN_OPTIONS = [
@@ -25,14 +25,15 @@ const LANGUAGE_OPTIONS = [
   { code: 'Arabic', label: 'Arabic', native: 'العربية' },
 ];
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 interface OnboardingFlowProps {
   onComplete: (data: OnboardingData) => void;
   onSkip: () => void;
+  onBack?: () => void;
 }
 
-export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
+export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowProps) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -41,6 +42,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
   const [experience, setExperience] = useState<OnboardingData['therapyExperience'] | null>(null);
   const [language, setLanguage] = useState('English');
   const [voice, setVoice] = useState<'female' | 'male'>('female');
+  const [doctorInput, setDoctorInput] = useState('');
 
   function toggleConcern(concern: string) {
     setConcerns(prev =>
@@ -57,6 +59,9 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
       therapyExperience: experience || 'none',
       language,
       voicePreference: voice,
+      doctorUsernames: doctorInput.trim()
+        ? doctorInput.split(',').map(d => d.trim().toLowerCase()).filter(Boolean)
+        : undefined,
     });
   }
 
@@ -67,6 +72,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
     if (step === 3) return experience !== null;
     if (step === 4) return true;           // language has default
     if (step === 5) return true;           // voice has default
+    if (step === 6) return true;           // doctor username optional
     return false;
   }
 
@@ -75,6 +81,14 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
       setStep(s => s + 1);
     } else {
       handleComplete();
+    }
+  }
+
+  function goBack() {
+    if (step > 0) {
+      setStep(s => s - 1);
+    } else if (onBack) {
+      onBack();
     }
   }
 
@@ -234,11 +248,40 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
           </div>
         )}
 
+        {/* Step 7: Doctor Username */}
+        {step === 6 && (
+          <div className="onboarding-step">
+            <div className="step-icon"><Stethoscope size={28} /></div>
+            <h2>Link to your doctor</h2>
+            <p>If your doctor or therapist uses Sukoon, enter their username so they can view your progress.</p>
+            <input
+              type="text"
+              className="onboarding-input"
+              placeholder="Doctor's username (optional)"
+              value={doctorInput}
+              onChange={e => setDoctorInput(e.target.value.toLowerCase())}
+              maxLength={80}
+              autoFocus
+            />
+            <p className="onboarding-hint">
+              You can add multiple doctors by separating usernames with commas.
+              You can also add or remove doctors later from Settings.
+            </p>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="onboarding-nav">
-          <button className="onboarding-skip" onClick={onSkip}>
-            <SkipForward size={14} /> Skip
-          </button>
+          <div className="onboarding-nav-left">
+            {(step > 0 || onBack) && (
+              <button className="onboarding-back" onClick={goBack}>
+                <ArrowLeft size={14} /> Back
+              </button>
+            )}
+            <button className="onboarding-skip" onClick={onSkip}>
+              <SkipForward size={14} /> Skip
+            </button>
+          </div>
           <button
             className="btn-primary onboarding-next"
             onClick={advance}

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { buildSystemPrompt, buildGreetingInstruction } from './systemPrompt';
 import type { SessionContext } from './systemPrompt';
 import { assessCrisisLevel } from './crisisDetection';
+import { streamChatCompletion } from './chatCompletions';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17';
@@ -22,6 +23,8 @@ interface Session {
   isSummaryRequested: boolean;
   isResponseActive: boolean; // true while OpenAI is generating a response
   isPendingEnd: boolean;     // true if session.end arrived during an active response
+  mode: 'voice' | 'chat';
+  chatHistory: { role: 'system' | 'user' | 'assistant'; content: string }[];
 }
 
 const activeSessions = new Map<string, Session>();
@@ -55,6 +58,8 @@ export function setupWebSocket(server: http.Server): void {
       isSummaryRequested: false,
       isResponseActive: false,
       isPendingEnd: false,
+      mode: 'voice',
+      chatHistory: [],
     };
 
     activeSessions.set(sessionId, session);
@@ -126,8 +131,9 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
         break;
 
       case 'session.end':
-        if (session.isResponseActive) {
-          // OpenAI is still generating — cancel it, then request summary once done
+        if (session.mode === 'chat') {
+          requestChatSummaryAndCleanup(session);
+        } else if (session.isResponseActive) {
           session.isPendingEnd = true;
           if (session.openaiWs?.readyState === WebSocket.OPEN) {
             session.openaiWs.send(JSON.stringify({ type: 'response.cancel' }));
@@ -135,6 +141,22 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
           console.log(`[Session ${session.id}] Session end deferred — waiting for active response to finish`);
         } else {
           requestSummaryAndCleanup(session);
+        }
+        break;
+
+      case 'chat.start':
+        session.mode = 'chat';
+        session.context = {
+          assessmentContext: message.assessmentContext,
+          userPreferences: message.userPreferences,
+          priorSessionContext: message.priorSessionContext,
+        };
+        startChatSession(session);
+        break;
+
+      case 'chat.message':
+        if (session.mode === 'chat' && message.text) {
+          handleChatMessage(session, message.text);
         }
         break;
 
@@ -485,6 +507,150 @@ function handleSummaryResponse(session: Session, text: string): void {
   } catch (error) {
     console.error(`[Session ${session.id}] Failed to parse summary:`, error);
   }
+}
+
+// ---- Chat Mode Functions ----
+
+function startChatSession(session: Session): void {
+  console.log(`[Session ${session.id}] Starting chat session...`);
+
+  sendToClient(session.clientWs, { type: 'session.status', status: 'connecting' });
+
+  const systemPrompt = buildSystemPrompt(session.context, 'chat');
+  session.chatHistory = [{ role: 'system', content: systemPrompt }];
+
+  // Session timeout
+  session.timeoutHandle = setTimeout(() => {
+    console.log(`[Session ${session.id}] Chat session timeout`);
+    sendToClient(session.clientWs, {
+      type: 'session.timeout',
+      message: 'Your session has reached the maximum duration. The session will now end.',
+    });
+    requestChatSummaryAndCleanup(session);
+  }, SESSION_TIMEOUT_MS);
+
+  sendToClient(session.clientWs, { type: 'session.status', status: 'connected' });
+
+  // Send greeting
+  const greetingInstruction = buildGreetingInstruction(session.context);
+  session.chatHistory.push({ role: 'user', content: `[SYSTEM: ${greetingInstruction}]` });
+
+  session.isResponseActive = true;
+  sendToClient(session.clientWs, { type: 'response.started' });
+
+  streamChatCompletion(
+    session.chatHistory,
+    (delta) => {
+      sendToClient(session.clientWs, { type: 'chat.response.delta', delta });
+    },
+    (fullText) => {
+      session.chatHistory.push({ role: 'assistant', content: fullText });
+      session.transcriptBuffer.push({ role: 'ai', text: fullText });
+      session.isResponseActive = false;
+      sendToClient(session.clientWs, { type: 'chat.response.done', text: fullText });
+      sendToClient(session.clientWs, { type: 'response.done' });
+    },
+    (error) => {
+      session.isResponseActive = false;
+      console.error(`[Session ${session.id}] Chat greeting error:`, error);
+      sendToClient(session.clientWs, { type: 'error', message: 'Failed to start chat session.' });
+    },
+  );
+}
+
+function handleChatMessage(session: Session, userText: string): void {
+  console.log(`[Session ${session.id}] Chat message received`);
+
+  // Add to chat history and transcript
+  session.chatHistory.push({ role: 'user', content: userText });
+  session.transcriptBuffer.push({ role: 'user', text: userText });
+
+  // Send user transcript back to client for display
+  sendToClient(session.clientWs, { type: 'transcript.user.done', transcript: userText });
+
+  // Crisis check
+  performCrisisCheck(session, userText);
+
+  // Stream AI response
+  session.isResponseActive = true;
+  sendToClient(session.clientWs, { type: 'response.started' });
+
+  streamChatCompletion(
+    session.chatHistory,
+    (delta) => {
+      sendToClient(session.clientWs, { type: 'chat.response.delta', delta });
+    },
+    (fullText) => {
+      session.chatHistory.push({ role: 'assistant', content: fullText });
+      session.transcriptBuffer.push({ role: 'ai', text: fullText });
+      session.isResponseActive = false;
+      sendToClient(session.clientWs, { type: 'chat.response.done', text: fullText });
+      sendToClient(session.clientWs, { type: 'response.done' });
+    },
+    (error) => {
+      session.isResponseActive = false;
+      console.error(`[Session ${session.id}] Chat response error:`, error);
+      sendToClient(session.clientWs, { type: 'error', message: 'Failed to generate response.' });
+    },
+  );
+}
+
+function requestChatSummaryAndCleanup(session: Session): void {
+  if (session.transcriptBuffer.length < 2 || session.isSummaryRequested) {
+    cleanupSession(session);
+    return;
+  }
+
+  session.isSummaryRequested = true;
+  console.log(`[Session ${session.id}] Requesting chat session summary...`);
+
+  const summaryMessages = [
+    { role: 'system' as const, content: session.chatHistory[0].content },
+    ...session.chatHistory.slice(1),
+    {
+      role: 'user' as const,
+      content: `[SYSTEM INSTRUCTION — NOT FROM PATIENT] Generate a comprehensive JSON clinical summary of this therapy session. Respond ONLY with valid JSON, no markdown, no explanation. Format:
+{
+  "keyTakeaways": ["insight 1", "insight 2"],
+  "copingStrategies": ["strategy 1"],
+  "homeworkAssignments": ["homework 1"],
+  "topicsDiscussed": ["topic 1"],
+  "emotionalThemes": ["theme 1"],
+  "issuesIdentified": ["issue 1"],
+  "conversationAssessment": "A 2-3 sentence clinical paragraph summarizing the session.",
+  "emotionalJourney": "A brief narrative of emotional shifts during the session.",
+  "riskLevel": "low",
+  "suggestedFocusAreas": ["area 1"],
+  "techniquesUsed": ["technique 1"],
+  "clinicalImpression": "A clinical observation paragraph.",
+  "preliminaryDiagnosis": "DSM-5 aligned diagnostic impression.",
+  "recommendedActions": ["action 1"],
+  "wayForward": "Therapeutic path narrative."
+}
+CRITICAL: Populate ALL clinical fields. These are the MOST IMPORTANT part of the summary.`,
+    },
+  ];
+
+  streamChatCompletion(
+    summaryMessages,
+    () => { /* ignore deltas for summary */ },
+    (fullText) => {
+      handleSummaryResponse(session, fullText);
+      cleanupSession(session);
+    },
+    (error) => {
+      console.error(`[Session ${session.id}] Chat summary error:`, error);
+      cleanupSession(session);
+    },
+  );
+
+  // Fallback timeout
+  setTimeout(() => {
+    if (activeSessions.has(session.id)) {
+      console.log(`[Session ${session.id}] Chat summary timeout — cleaning up`);
+      cleanupSession(session);
+    }
+  }, 20000);
 }
 
 function sendToClient(ws: WebSocket, data: Record<string, unknown>): void {

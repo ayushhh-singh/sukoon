@@ -1,6 +1,9 @@
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
+export type UserRole = 'patient' | 'doctor';
+
 export type SessionPhase =
+  | 'role-select'
   | 'consent'
   | 'profile-select'
   | 'onboarding'
@@ -8,6 +11,7 @@ export type SessionPhase =
   | 'prior-session'
   | 'pre-mood'
   | 'pre-assessment'
+  | 'mode-select'
   | 'ready'
   | 'active'
   | 'post-mood'
@@ -36,6 +40,7 @@ export interface ServerMessage {
   status?: ConnectionStatus;
   delta?: string;
   transcript?: string;
+  text?: string;
   message?: string;
   detail?: string;
   resources?: CrisisResources;
