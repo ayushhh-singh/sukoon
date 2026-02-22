@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../hooks/useSession';
 import {
@@ -13,17 +13,28 @@ import { PatientExercises } from './PatientExercises';
 import { PatientAppointments } from './PatientAppointments';
 import { PatientSettings } from './PatientSettings';
 import { ThemeToggle } from '../ThemeToggle';
+import { OnboardingFlow } from '../onboarding/OnboardingFlow';
+import { users as usersApi, doctors as doctorsApi } from '../../services/api';
+import type { OnboardingData } from '../../types/session';
 
 type Tab = 'sessions' | 'history' | 'progress' | 'journal' | 'exercises' | 'appointments' | 'settings';
 
+function isProfileIncomplete(user: Record<string, unknown> | null): boolean {
+  if (!user) return false;
+  const concerns = (user.primaryConcerns as string[]) || [];
+  // Show onboarding if user has no age AND no primary concerns set
+  return !user.age && concerns.length === 0;
+}
+
 export function PatientApp() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshProfile } = useAuth();
   const session = useSession();
   const [activeTab, setActiveTab] = useState<Tab>('sessions');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'sessions', label: 'Sessions', icon: <MessageCircle size={18} /> },
+    { id: 'sessions', label: 'New Session', icon: <MessageCircle size={18} /> },
     { id: 'history', label: 'History', icon: <History size={18} /> },
     { id: 'progress', label: 'Progress', icon: <BarChart3 size={18} /> },
     { id: 'journal', label: 'Journal', icon: <BookOpen size={18} /> },
@@ -33,6 +44,7 @@ export function PatientApp() {
   ];
 
   const isSessionActive = session.phase === 'active';
+  const showOnboarding = !onboardingDone && isProfileIncomplete(user as Record<string, unknown> | null);
 
   function handleSessionActive() {
     setSidebarCollapsed(true);
@@ -40,6 +52,60 @@ export function PatientApp() {
 
   function handleSessionInactive() {
     setSidebarCollapsed(false);
+  }
+
+  const handleOnboardingComplete = useCallback(async (data: OnboardingData) => {
+    try {
+      // Link doctors by ID if provided (from DoctorSearch in onboarding)
+      if (data.doctorIds && data.doctorIds.length > 0) {
+        for (const id of data.doctorIds) {
+          try { await doctorsApi.link(id); } catch { /* ignore */ }
+        }
+      }
+      // Fallback: link by username if usernames provided
+      if (data.doctorUsernames && data.doctorUsernames.length > 0) {
+        for (const username of data.doctorUsernames) {
+          try {
+            const results = await doctorsApi.search(username);
+            const match = results.find(d => (d.username as string) === username);
+            if (match) { await doctorsApi.link(match.id as string); }
+          } catch { /* ignore */ }
+        }
+      }
+      // Save all profile data
+      await usersApi.updateMe({
+        displayName: data.preferredName !== 'there' ? data.preferredName : undefined,
+        age: data.age,
+        profession: data.profession,
+        primaryConcerns: data.primaryConcerns,
+        therapyExperience: data.therapyExperience,
+        language: data.language,
+        voicePreference: data.voicePreference,
+        knownDisorders: data.knownDisorders,
+        currentMedications: data.currentMedications,
+      });
+      await refreshProfile();
+    } catch {
+      // Silently continue even if save fails
+    } finally {
+      setOnboardingDone(true);
+    }
+  }, [refreshProfile]);
+
+  const handleOnboardingSkip = useCallback(() => {
+    setOnboardingDone(true);
+  }, []);
+
+  // Show onboarding fullscreen for new/incomplete profiles
+  if (showOnboarding) {
+    return (
+      <div className="app">
+        <OnboardingFlow
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      </div>
+    );
   }
 
   return (

@@ -33,7 +33,7 @@ import { MindfulWalking } from '../exercises/MindfulWalking';
 import { FlowProgress } from '../FlowProgress';
 import { DailyCheckIn } from '../DailyCheckIn';
 import { PriorSessionPicker } from '../PriorSessionPicker';
-import { Layers, Volume2 } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 import type { AmbientSound } from '../../types/session';
 
 // Exercise components keyed by ID
@@ -203,18 +203,12 @@ export function PatientSessions({ session, onSessionActive, onSessionInactive }:
             </div>
           )}
 
-          <div className="ready-actions">
-            <button className="ready-side-btn" onClick={session.toggleExercisesPanel} title="Self-Guided Exercises">
-              <Layers size={18} />
-              <span>Exercises</span>
-            </button>
-            <SessionControls
-              isActive={false}
-              connectionStatus={session.connectionStatus}
-              onStart={session.startSession}
-              onEnd={session.endSession}
-            />
-          </div>
+          <SessionControls
+            isActive={false}
+            connectionStatus={session.connectionStatus}
+            onStart={session.startSession}
+            onEnd={session.endSession}
+          />
         </div>
       )}
 
@@ -279,11 +273,9 @@ export function PatientSessions({ session, onSessionActive, onSessionInactive }:
         <SessionSummaryScreen
           summary={session.sessionSummary}
           onSaveReflection={session.saveReflection}
-          onNewSession={session.newSession}
-          onGoHome={session.goHome}
           bookmarks={session.bookmarks}
           onToggleBookmark={session.toggleBookmark}
-          onOpenHistory={() => {}}
+          onNewSession={session.newSession}
         />
       )}
 

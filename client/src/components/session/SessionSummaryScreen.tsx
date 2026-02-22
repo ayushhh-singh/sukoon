@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   CheckCircle, ArrowDown, ArrowUp, Minus, Download, RotateCcw,
   AlertTriangle, Shield, ShieldAlert, Brain, Target, Lightbulb,
-  Stethoscope, ClipboardList, Bookmark, BookmarkCheck, History,
+  Stethoscope, ClipboardList, Bookmark, BookmarkCheck, Heart,
 } from 'lucide-react';
 import type { SessionSummary, BookmarkedStrategy } from '../../types/session';
 import type { MoodEntry } from '../../types/mood';
@@ -11,14 +11,12 @@ import { StorageService } from '../../services/storage';
 interface SessionSummaryScreenProps {
   summary: SessionSummary;
   onSaveReflection: (text: string) => void;
-  onNewSession: () => void;
-  onGoHome: () => void;
   bookmarks: BookmarkedStrategy[];
   onToggleBookmark: (strategy: BookmarkedStrategy) => void;
-  onOpenHistory: () => void;
+  onNewSession?: () => void;
 }
 
-export function SessionSummaryScreen({ summary, onSaveReflection, onNewSession, onGoHome, bookmarks, onToggleBookmark, onOpenHistory }: SessionSummaryScreenProps) {
+export function SessionSummaryScreen({ summary, onSaveReflection, bookmarks, onToggleBookmark, onNewSession }: SessionSummaryScreenProps) {
   const [reflection, setReflection] = useState(summary.userReflection || '');
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -54,30 +52,39 @@ export function SessionSummaryScreen({ summary, onSaveReflection, onNewSession, 
   return (
     <div className="summary-screen">
       <div className="summary-card">
-        {/* Header */}
-        <h2>Session Summary</h2>
-        <p className="summary-date">
-          {new Date(summary.date).toLocaleDateString('en-US', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-          })}
-          {durationMin > 0 && ` \u2022 ${durationMin} min`}
-        </p>
+        {/* Celebration Header */}
+        <div className="summary-celebration">
+          <div className="summary-celebration-icon">
+            <Heart size={28} />
+          </div>
+          <h2>Session Complete</h2>
+          <p className="summary-date">
+            {new Date(summary.date).toLocaleDateString('en-US', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            })}
+            {durationMin > 0 && ` \u2022 ${durationMin} min`}
+            {summary.mode && ` \u2022 ${summary.mode === 'chat' ? 'Chat' : 'Voice'}`}
+          </p>
+        </div>
 
         {/* Mood change */}
         {summary.preMood && summary.postMood && (
-          <div className="mood-change">
-            <div className="mood-before">
-              <span className="mood-emoji-sm">{summary.preMood.emoji}</span>
-              <span>{summary.preMood.label}</span>
+          <div className="summary-mood-cards">
+            <div className="summary-mood-card summary-mood-before">
+              <span className="summary-mood-label">Before</span>
+              <span className="summary-mood-emoji">{summary.preMood.emoji}</span>
+              <span className="summary-mood-name">{summary.preMood.label}</span>
             </div>
-            <div className={`mood-arrow ${moodDelta && moodDelta > 0 ? 'up' : moodDelta && moodDelta < 0 ? 'down' : ''}`}>
+            <div className={`summary-mood-arrow ${moodDelta && moodDelta > 0 ? 'up' : moodDelta && moodDelta < 0 ? 'down' : 'neutral'}`}>
               {moodDelta !== null && moodDelta > 0 && <ArrowUp size={20} />}
               {moodDelta !== null && moodDelta < 0 && <ArrowDown size={20} />}
               {moodDelta !== null && moodDelta === 0 && <Minus size={20} />}
+              <span>{moodDelta !== null && moodDelta > 0 ? `+${moodDelta}` : moodDelta}</span>
             </div>
-            <div className="mood-after">
-              <span className="mood-emoji-sm">{summary.postMood.emoji}</span>
-              <span>{summary.postMood.label}</span>
+            <div className="summary-mood-card summary-mood-after">
+              <span className="summary-mood-label">After</span>
+              <span className="summary-mood-emoji">{summary.postMood.emoji}</span>
+              <span className="summary-mood-name">{summary.postMood.label}</span>
             </div>
           </div>
         )}
@@ -301,20 +308,16 @@ export function SessionSummaryScreen({ summary, onSaveReflection, onNewSession, 
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="summary-actions">
-          <button className="btn-secondary" onClick={onOpenHistory}>
-            <History size={16} /> View History
-          </button>
-          <button className="btn-secondary" onClick={handleExportPDF} disabled={exporting}>
+        {/* Sticky Action Bar */}
+        <div className="summary-action-bar">
+          <button className="summary-export-btn" onClick={handleExportPDF} disabled={exporting}>
             <Download size={16} /> {exporting ? 'Generating...' : 'Export PDF'}
           </button>
-          <button className="btn-primary" onClick={onNewSession}>
-            <RotateCcw size={16} /> New Session
-          </button>
-          <button className="btn-secondary" onClick={onGoHome}>
-            Home
-          </button>
+          {onNewSession && (
+            <button className="summary-new-session-btn" onClick={onNewSession}>
+              <RotateCcw size={16} /> Start New Session
+            </button>
+          )}
         </div>
       </div>
     </div>

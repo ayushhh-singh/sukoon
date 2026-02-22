@@ -6,7 +6,12 @@ import { TherapistPatientDetail } from './TherapistPatientDetail';
 interface PatientSummary {
   id: string;
   displayName: string;
+  email: string;
   primaryConcerns: string[];
+  knownDisorders: string[];
+  currentMedications: string[];
+  age: number | null;
+  profession: string | null;
   sessionCount: number;
   lastSessionDate: string | null;
   avgMoodChange: number | null;
@@ -44,7 +49,12 @@ export function TherapistPatients() {
           return {
             id: pid,
             displayName: p.displayName as string,
+            email: p.email as string,
             primaryConcerns: (p.primaryConcerns as string[]) || [],
+            knownDisorders: (p.knownDisorders as string[]) || [],
+            currentMedications: (p.currentMedications as string[]) || [],
+            age: (p.age as number | null) || null,
+            profession: (p.profession as string | null) || null,
             sessionCount: patientSessions.length,
             lastSessionDate: lastSession ? (lastSession.date as string) : null,
             avgMoodChange,
@@ -68,6 +78,7 @@ export function TherapistPatients() {
       <TherapistPatientDetail
         patientId={selectedPatientId}
         patientName={patient?.displayName || 'Patient'}
+        patientInfo={patient}
         onBack={() => setSelectedPatientId(null)}
       />
     );

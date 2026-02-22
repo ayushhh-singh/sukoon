@@ -51,7 +51,7 @@ export function HistoryScreen({ onClose, bookmarks, onToggleBookmark, isInline }
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   useEffect(() => {
     sessionsApi.list()

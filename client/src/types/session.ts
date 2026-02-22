@@ -61,6 +61,9 @@ export interface OnboardingData {
   language?: string;
   ambientSound?: AmbientSound;
   doctorUsernames?: string[];
+  doctorIds?: string[];
+  knownDisorders?: string[];
+  currentMedications?: string[];
 }
 
 export interface UserProfile {

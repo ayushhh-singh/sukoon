@@ -338,6 +338,10 @@ export function useSession() {
       if (sessionGoal.trim()) userPrefs.goalForToday = sessionGoal.trim();
       if (user.age) userPrefs.age = user.age;
       if (user.profession) userPrefs.profession = user.profession;
+      const disorders = user.knownDisorders as string[] | undefined;
+      const meds = user.currentMedications as string[] | undefined;
+      if (disorders && disorders.length > 0) userPrefs.knownDisorders = disorders;
+      if (meds && meds.length > 0) userPrefs.currentMedications = meds;
     }
 
     return {

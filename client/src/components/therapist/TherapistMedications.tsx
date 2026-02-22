@@ -101,7 +101,7 @@ export function TherapistMedications() {
                 <span>{m.dosage as string}</span>
                 <span>{m.frequency as string}</span>
               </div>
-              {m.startDate && (
+              {!!m.startDate && (
                 <div className="therapist-med-date">
                   Since {new Date(m.startDate as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>

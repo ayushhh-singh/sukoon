@@ -1,4 +1,4 @@
-import { AlertTriangle, Phone, MessageSquare, Globe, X } from 'lucide-react';
+import { AlertTriangle, Phone, MessageSquare, X } from 'lucide-react';
 import type { CrisisResources } from '../types';
 
 interface CrisisModalProps {

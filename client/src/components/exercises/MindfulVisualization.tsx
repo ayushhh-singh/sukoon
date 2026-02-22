@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Play, RotateCcw, ChevronRight } from 'lucide-react';
+import { X, RotateCcw, ChevronRight } from 'lucide-react';
 
 interface Props {
   onClose: () => void;

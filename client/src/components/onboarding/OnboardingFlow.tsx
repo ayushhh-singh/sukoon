@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, ArrowLeft, SkipForward, User, Heart, BookOpen, AudioLines, Briefcase, Globe, Stethoscope } from 'lucide-react';
+import { ArrowRight, ArrowLeft, SkipForward, User, Heart, BookOpen, AudioLines, Briefcase, Globe, Stethoscope, ClipboardList, X } from 'lucide-react';
 import type { OnboardingData } from '../../types/session';
+import { DoctorSearch } from '../DoctorSearch';
 
 const CONCERN_OPTIONS = [
   'Stress & Overwhelm',
@@ -25,7 +26,7 @@ const LANGUAGE_OPTIONS = [
   { code: 'Arabic', label: 'Arabic', native: 'العربية' },
 ];
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 interface OnboardingFlowProps {
   onComplete: (data: OnboardingData) => void;
@@ -38,16 +39,41 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [profession, setProfession] = useState('');
+  const [disorders, setDisorders] = useState<string[]>([]);
+  const [disorderInput, setDisorderInput] = useState('');
+  const [medications, setMedications] = useState<string[]>([]);
+  const [medicationInput, setMedicationInput] = useState('');
   const [concerns, setConcerns] = useState<string[]>([]);
   const [experience, setExperience] = useState<OnboardingData['therapyExperience'] | null>(null);
   const [language, setLanguage] = useState('English');
   const [voice, setVoice] = useState<'female' | 'male'>('female');
-  const [doctorInput, setDoctorInput] = useState('');
+  const [linkedDoctors, setLinkedDoctors] = useState<{ id: string; username: string; displayName: string }[]>([]);
 
   function toggleConcern(concern: string) {
     setConcerns(prev =>
       prev.includes(concern) ? prev.filter(c => c !== concern) : [...prev, concern]
     );
+  }
+
+  function addTag(value: string, list: string[], setList: (v: string[]) => void, setInput: (v: string) => void) {
+    const trimmed = value.trim();
+    if (trimmed && !list.includes(trimmed)) {
+      setList([...list, trimmed]);
+    }
+    setInput('');
+  }
+
+  function handleTagKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    inputValue: string,
+    list: string[],
+    setList: (v: string[]) => void,
+    setInput: (v: string) => void,
+  ) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(inputValue, list, setList, setInput);
+    }
   }
 
   function handleComplete() {
@@ -59,20 +85,21 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
       therapyExperience: experience || 'none',
       language,
       voicePreference: voice,
-      doctorUsernames: doctorInput.trim()
-        ? doctorInput.split(',').map(d => d.trim().toLowerCase()).filter(Boolean)
-        : undefined,
+      knownDisorders: disorders.length > 0 ? disorders : undefined,
+      currentMedications: medications.length > 0 ? medications : undefined,
+      doctorIds: linkedDoctors.length > 0 ? linkedDoctors.map(d => d.id) : undefined,
     });
   }
 
   function canAdvance() {
     if (step === 0) return true;           // name optional
     if (step === 1) return true;           // age & profession optional
-    if (step === 2) return concerns.length > 0;
-    if (step === 3) return experience !== null;
-    if (step === 4) return true;           // language has default
-    if (step === 5) return true;           // voice has default
-    if (step === 6) return true;           // doctor username optional
+    if (step === 2) return true;           // medical history optional
+    if (step === 3) return concerns.length > 0;
+    if (step === 4) return experience !== null;
+    if (step === 5) return true;           // language has default
+    if (step === 6) return true;           // voice has default
+    if (step === 7) return true;           // doctor username optional
     return false;
   }
 
@@ -155,8 +182,64 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 3: Concerns */}
+        {/* Step 3: Medical History */}
         {step === 2 && (
+          <div className="onboarding-step">
+            <div className="step-icon"><ClipboardList size={28} /></div>
+            <h2>Medical history</h2>
+            <p>This helps Dr. Aria provide safer, more informed guidance. All information is kept confidential.</p>
+            <div className="onboarding-field">
+              <label className="onboarding-label">Known diagnoses or conditions (optional)</label>
+              <div className="onboarding-tags-input">
+                <div className="onboarding-tags">
+                  {disorders.map(d => (
+                    <span key={d} className="onboarding-tag">
+                      {d}
+                      <button type="button" onClick={() => setDisorders(prev => prev.filter(x => x !== d))}><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  className="onboarding-input"
+                  placeholder="e.g., ADHD, Anxiety Disorder, Diabetes — press Enter to add"
+                  value={disorderInput}
+                  onChange={e => setDisorderInput(e.target.value)}
+                  onKeyDown={e => handleTagKeyDown(e, disorderInput, disorders, setDisorders, setDisorderInput)}
+                  onBlur={() => { if (disorderInput.trim()) addTag(disorderInput, disorders, setDisorders, setDisorderInput); }}
+                  maxLength={100}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="onboarding-field">
+              <label className="onboarding-label">Current medications (optional)</label>
+              <div className="onboarding-tags-input">
+                <div className="onboarding-tags">
+                  {medications.map(m => (
+                    <span key={m} className="onboarding-tag">
+                      {m}
+                      <button type="button" onClick={() => setMedications(prev => prev.filter(x => x !== m))}><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  className="onboarding-input"
+                  placeholder="e.g., Sertraline 50mg, Melatonin — press Enter to add"
+                  value={medicationInput}
+                  onChange={e => setMedicationInput(e.target.value)}
+                  onKeyDown={e => handleTagKeyDown(e, medicationInput, medications, setMedications, setMedicationInput)}
+                  onBlur={() => { if (medicationInput.trim()) addTag(medicationInput, medications, setMedications, setMedicationInput); }}
+                  maxLength={100}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Concerns */}
+        {step === 3 && (
           <div className="onboarding-step">
             <div className="step-icon"><Heart size={28} /></div>
             <h2>What brings you here today?</h2>
@@ -175,8 +258,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 4: Experience */}
-        {step === 3 && (
+        {/* Step 5: Experience */}
+        {step === 4 && (
           <div className="onboarding-step">
             <div className="step-icon"><BookOpen size={28} /></div>
             <h2>Have you spoken with a therapist before?</h2>
@@ -200,8 +283,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 5: Language Selection */}
-        {step === 4 && (
+        {/* Step 6: Language Selection */}
+        {step === 5 && (
           <div className="onboarding-step">
             <div className="step-icon"><Globe size={28} /></div>
             <h2>Choose your language</h2>
@@ -221,8 +304,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 6: Voice Selection */}
-        {step === 5 && (
+        {/* Step 7: Voice Selection */}
+        {step === 6 && (
           <div className="onboarding-step">
             <div className="step-icon"><AudioLines size={28} /></div>
             <h2>Choose Dr. Aria's voice</h2>
@@ -248,23 +331,28 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 7: Doctor Username */}
-        {step === 6 && (
-          <div className="onboarding-step">
+        {/* Step 8: Doctor Search */}
+        {step === 7 && (
+          <div className="onboarding-step onboarding-step-doctor">
             <div className="step-icon"><Stethoscope size={28} /></div>
             <h2>Link to your doctor</h2>
-            <p>If your doctor or therapist uses Sukoon, enter their username so they can view your progress.</p>
-            <input
-              type="text"
-              className="onboarding-input"
-              placeholder="Doctor's username (optional)"
-              value={doctorInput}
-              onChange={e => setDoctorInput(e.target.value.toLowerCase())}
-              maxLength={80}
-              autoFocus
-            />
+            <p>Search for your doctor or therapist on Sukoon so they can view your progress and provide better care.</p>
+            <div className="onboarding-doctor-search">
+              <DoctorSearch
+                linkedDoctors={linkedDoctors}
+                onLink={async (id) => {
+                  // Store the ID — PatientApp will call doctorsApi.link() after onboarding
+                  // Use a temporary display name fetched from search context
+                  if (!linkedDoctors.find(d => d.id === id)) {
+                    setLinkedDoctors(prev => [...prev, { id, username: '', displayName: 'Linked Doctor' }]);
+                  }
+                }}
+                onUnlink={async (id) => {
+                  setLinkedDoctors(prev => prev.filter(d => d.id !== id));
+                }}
+              />
+            </div>
             <p className="onboarding-hint">
-              You can add multiple doctors by separating usernames with commas.
               You can also add or remove doctors later from Settings.
             </p>
           </div>
