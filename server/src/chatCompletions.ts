@@ -1,5 +1,8 @@
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CHAT_MODEL = 'gpt-4o';
+
+function getOpenAIKey(): string | undefined {
+  return process.env.OPENAI_API_KEY;
+}
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -12,7 +15,8 @@ export async function streamChatCompletion(
   onDone: (fullText: string) => void,
   onError: (error: string) => void,
 ): Promise<void> {
-  if (!OPENAI_API_KEY) {
+  const apiKey = getOpenAIKey();
+  if (!apiKey) {
     onError('OpenAI API key not configured on the server.');
     return;
   }
@@ -21,7 +25,7 @@ export async function streamChatCompletion(
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

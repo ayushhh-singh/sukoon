@@ -26,7 +26,9 @@ function logError(sessionId: string, userLabel: string, msg: string, err?: unkno
   console.error(`[${ts()}] [Session ${sessionId}] [${userLabel}] ${msg}`, err || '');
 }
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+function getOpenAIKey(): string | undefined {
+  return process.env.OPENAI_API_KEY;
+}
 const OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17';
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes max
 const MAX_CONCURRENT_SESSIONS = 10;
@@ -210,7 +212,8 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
 }
 
 function connectToOpenAI(session: Session): void {
-  if (!OPENAI_API_KEY) {
+  const apiKey = getOpenAIKey();
+  if (!apiKey) {
     sendToClient(session.clientWs, {
       type: 'error',
       message: 'OpenAI API key not configured on the server.',
@@ -227,7 +230,7 @@ function connectToOpenAI(session: Session): void {
 
   const openaiWs = new WebSocket(OPENAI_REALTIME_URL, {
     headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
       'OpenAI-Beta': 'realtime=v1',
     },
   });

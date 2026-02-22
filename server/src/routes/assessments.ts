@@ -20,9 +20,18 @@ router.get('/latest/:type', (req: Request, res: Response) => {
 // POST /api/assessments
 router.post('/', (req: Request, res: Response) => {
   try {
-    const data = req.body;
-    data.user_id = req.user!.id;
-    const assessment = assessmentRepo.create(data);
+    const body = req.body;
+    const assessment = assessmentRepo.create({
+      user_id: req.user!.id,
+      session_id: body.sessionId || body.session_id,
+      type: body.type,
+      responses: body.responses,
+      total_score: body.totalScore ?? body.total_score,
+      severity: body.severity,
+      color: body.color,
+      timing: body.timing,
+      completed_at: body.completedAt || body.completed_at || new Date().toISOString(),
+    });
     res.status(201).json(assessment);
   } catch (error) {
     console.error('Create assessment error:', error);

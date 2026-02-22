@@ -58,21 +58,45 @@ router.get('/search', requireRole('patient'), (req: Request, res: Response) => {
   })));
 });
 
-// GET /api/doctors/:id — any authenticated user
-router.get('/:id', (req: Request, res: Response) => {
-  const doctor = doctorRepo.findById(req.params.id as string);
-  if (!doctor) { res.status(404).json({ error: 'Doctor not found' }); return; }
-  res.json({
-    id: doctor.id,
-    username: doctor.username,
-    displayName: doctor.display_name,
-    specializations: doctor.specializations,
-    experienceYears: doctor.experience_years,
-    qualifications: doctor.qualifications,
-    bio: doctor.bio,
-    clinicName: doctor.clinic_name,
-    acceptingPatients: doctor.accepting_patients,
-  });
+// GET /api/doctors/me/patients — doctor gets linked patients, admin gets ALL patients
+// NOTE: Must be before /:id to avoid matching "me" as an id
+router.get('/me/patients', requireRole('doctor', 'admin'), (req: Request, res: Response) => {
+  function toCamelCase(user: Omit<userRepo.User, 'password_hash'>) {
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.display_name,
+      age: user.age,
+      profession: user.profession,
+      primaryConcerns: user.primary_concerns,
+      therapyExperience: user.therapy_experience,
+      language: user.language,
+      voicePreference: user.voice_preference,
+      ambientSound: user.ambient_sound,
+      consentGiven: user.consent_given,
+      knownDisorders: user.known_disorders,
+      currentMedications: user.current_medications,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+    };
+  }
+
+  if (req.user!.role === 'admin') {
+    const allPatients = userRepo.findAll();
+    res.json(allPatients.map(u => toCamelCase(sanitizeUser(u))));
+    return;
+  }
+  const patientIds = doctorRepo.getLinkedPatientIds(req.user!.id);
+  const patients = patientIds.map(id => userRepo.findById(id)).filter(Boolean).map(u => toCamelCase(sanitizeUser(u!)));
+  res.json(patients);
+});
+
+// GET /api/doctors/me/linked — patient gets linked doctor IDs
+// NOTE: Must be before /:id to avoid matching "me" as an id
+router.get('/me/linked', requireRole('patient'), (req: Request, res: Response) => {
+  const doctorIds = doctorRepo.getLinkedDoctorIds(req.user!.id);
+  const doctors = doctorIds.map(id => doctorRepo.findById(id)).filter(Boolean).map(d => sanitizeDoctor(d!));
+  res.json(doctors);
 });
 
 // POST /api/doctors/link — patient links to doctor
@@ -93,24 +117,22 @@ router.delete('/link/:doctorId', requireRole('patient'), (req: Request, res: Res
   res.json({ success: true });
 });
 
-// GET /api/doctors/me/patients — doctor gets linked patients, admin gets ALL patients
-router.get('/me/patients', requireRole('doctor', 'admin'), (req: Request, res: Response) => {
-  if (req.user!.role === 'admin') {
-    // Admin sees all patients
-    const allPatients = userRepo.findAll();
-    res.json(allPatients.map(u => sanitizeUser(u)));
-    return;
-  }
-  const patientIds = doctorRepo.getLinkedPatientIds(req.user!.id);
-  const patients = patientIds.map(id => userRepo.findById(id)).filter(Boolean).map(u => sanitizeUser(u!));
-  res.json(patients);
-});
-
-// GET /api/doctors/me/linked — patient gets linked doctor IDs
-router.get('/me/linked', requireRole('patient'), (req: Request, res: Response) => {
-  const doctorIds = doctorRepo.getLinkedDoctorIds(req.user!.id);
-  const doctors = doctorIds.map(id => doctorRepo.findById(id)).filter(Boolean).map(d => sanitizeDoctor(d!));
-  res.json(doctors);
+// GET /api/doctors/:id — any authenticated user
+// NOTE: Must be AFTER all /me/* routes to avoid matching "me" as an id
+router.get('/:id', (req: Request, res: Response) => {
+  const doctor = doctorRepo.findById(req.params.id as string);
+  if (!doctor) { res.status(404).json({ error: 'Doctor not found' }); return; }
+  res.json({
+    id: doctor.id,
+    username: doctor.username,
+    displayName: doctor.display_name,
+    specializations: doctor.specializations,
+    experienceYears: doctor.experience_years,
+    qualifications: doctor.qualifications,
+    bio: doctor.bio,
+    clinicName: doctor.clinic_name,
+    acceptingPatients: doctor.accepting_patients,
+  });
 });
 
 export default router;

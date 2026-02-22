@@ -13,9 +13,16 @@ router.get('/', (req: Request, res: Response) => {
 // POST /api/moods
 router.post('/', (req: Request, res: Response) => {
   try {
-    const data = req.body;
-    data.user_id = req.user!.id;
-    const mood = moodRepo.create(data);
+    const body = req.body;
+    const mood = moodRepo.create({
+      user_id: req.user!.id,
+      session_id: body.sessionId || body.session_id,
+      value: body.value,
+      label: body.label,
+      emoji: body.emoji,
+      context: body.context,
+      timestamp: body.timestamp || new Date().toISOString(),
+    });
     res.status(201).json(mood);
   } catch (error) {
     console.error('Create mood error:', error);
