@@ -161,9 +161,10 @@ export function PatientSessions({ session, onSessionActive, onSessionInactive }:
                 ? `Welcome, ${patientName}. Ready when you are.`
                 : 'Your safe space for supportive conversations'}
             </p>
-            <span className="session-mode-badge">
+            <button className="session-mode-badge session-mode-switch" onClick={session.goBack} title="Change session type">
               {session.sessionMode === 'chat' ? 'Chat Session' : 'Voice Session'}
-            </span>
+              <span className="session-mode-switch-hint">Change</span>
+            </button>
           </div>
           <DailyCheckIn />
           {session.sessionMode === 'voice' && (

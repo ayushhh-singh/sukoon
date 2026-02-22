@@ -8,43 +8,48 @@
 }
 
 :root {
-  /* ── Sukoon Light — Premium calm-clinical palette ── */
+  /* ── Sukoon Light — Calm, Trustworthy, Professional Palette ──
+     Inspired by leading mental health apps (Headspace, Calm).
+     Blue is the #1 color for healthcare: trust, calm, safety.
+     One primary accent. Clean whites. Warm dark gray text.
+  ── */
 
-  /* Backgrounds: cool off-white base with soft blue-grey tints */
-  --bg-primary:    #F4F6FB;   /* main canvas — slate blue-grey */
-  --bg-secondary:  #EEF1F8;   /* slightly deeper for contrast zones */
-  --bg-card:       #FFFFFF;   /* pure white cards — crisp pop */
-  --bg-card-hover: #F7F8FE;   /* card hover — barely-there lavender */
-  --surface:       #EDF0FA;   /* input surfaces, chips, secondary areas */
+  /* Backgrounds: clean white with the softest blue-gray tint */
+  --bg-primary:    #F7F9FC;   /* near-white with faint blue tint */
+  --bg-secondary:  #EEF2F8;   /* slightly deeper for contrast zones */
+  --bg-card:       #FFFFFF;   /* pure white cards */
+  --bg-card-hover: #F2F6FD;   /* card hover — whisper blue */
+  --surface:       #EDF1F8;   /* input surfaces, chips */
 
-  /* Text: deep slate for max readability */
-  --text-primary:   #1A1D2E;  /* near-black with cool undertone */
-  --text-secondary: #4A5070;  /* medium slate — comfortable secondary */
-  --text-muted:     #8890B0;  /* muted slate — hints, placeholders */
+  /* Text: warm dark gray — not pure black, easier on eyes */
+  --text-primary:   #1E2535;  /* deep navy-gray — readable, grounded */
+  --text-secondary: #4A5568;  /* medium gray — comfortable secondary */
+  --text-muted:     #8896A8;  /* muted blue-gray — placeholders */
 
-  /* Accent: vibrant indigo-violet — energetic but calming */
-  --accent-primary: #5B4EFF;  /* saturated indigo — primary CTA */
-  --accent-light:   #7B6FFF;  /* lighter indigo for text on dark */
-  --accent-glow:    rgba(91, 78, 255, 0.18);
+  /* Primary accent: calm trustworthy blue (healthcare proven) */
+  --accent-primary: #2563EB;  /* rich royal blue — confident, trustworthy */
+  --accent-light:   #3B82F6;  /* medium blue for hover/text */
+  --accent-dark:    #1E40AF;  /* deep navy for gradient depth */
+  --accent-glow:    rgba(37, 99, 235, 0.16);
 
-  /* Teal: fresh, healing */
-  --teal:      #0EA5A0;
-  --teal-glow: rgba(14, 165, 160, 0.18);
+  /* Teal: secondary calming color — used sparingly */
+  --teal:      #0D9488;       /* deep teal — healing, balance */
+  --teal-glow: rgba(13, 148, 136, 0.14);
 
-  /* Semantic */
-  --rose:      #E0245E;
-  --rose-light:#F0416F;
-  --rose-glow: rgba(224, 36, 94, 0.12);
+  /* Semantic colors */
+  --rose:      #E11D48;       /* error/alert */
+  --rose-light:#FB7185;
+  --rose-glow: rgba(225, 29, 72, 0.12);
 
-  --amber:      #C2820A;
-  --amber-glow: rgba(194, 130, 10, 0.12);
+  --amber:      #D97706;      /* warning */
+  --amber-glow: rgba(217, 119, 6, 0.14);
 
-  --green:      #15924A;
-  --green-glow: rgba(21, 146, 74, 0.12);
+  --green:      #059669;      /* success/positive */
+  --green-glow: rgba(5, 150, 105, 0.13);
 
-  /* Borders: crisp, visible but subtle — contrast from bg-primary */
-  --border:       rgba(99, 108, 160, 0.14);
-  --border-light: rgba(99, 108, 160, 0.22);
+  /* Borders: light blue-gray — visible but not harsh */
+  --border:       rgba(37, 99, 235, 0.13);
+  --border-light: rgba(37, 99, 235, 0.22);
 
   /* Radii */
   --radius-sm:   8px;
@@ -53,10 +58,10 @@
   --radius-xl:   24px;
   --radius-full: 9999px;
 
-  /* Shadows: cool-tinted for depth on light bg */
-  --shadow-sm: 0 1px 4px rgba(30, 40, 100, 0.07);
-  --shadow-md: 0 4px 16px rgba(30, 40, 100, 0.10);
-  --shadow-lg: 0 12px 40px rgba(30, 40, 100, 0.13);
+  /* Shadows: cool blue-gray tinted — professional and clean */
+  --shadow-sm: 0 1px 4px rgba(30, 37, 53, 0.07);
+  --shadow-md: 0 4px 16px rgba(30, 37, 53, 0.09);
+  --shadow-lg: 0 12px 40px rgba(30, 37, 53, 0.12);
 
   --transition-fast:   150ms ease;
   --transition-normal: 250ms ease;

@@ -147,6 +147,8 @@ function normalizeUser(raw: Record<string, unknown>): AuthUser {
     ambientSound: (raw.ambient_sound || raw.ambientSound || 'none') as string,
     consentGiven: raw.consent_given as number,
     createdAt: (raw.created_at || raw.createdAt) as string,
+    knownDisorders: (raw.known_disorders || raw.knownDisorders || []) as string[],
+    currentMedications: (raw.current_medications || raw.currentMedications || []) as string[],
   };
 }
 
