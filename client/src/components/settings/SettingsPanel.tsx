@@ -1,114 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save } from 'lucide-react';
-import { StorageService } from '../../services/storage';
-import type { UserProfile } from '../../types/session';
+import { X, Save } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { users as usersApi, doctors as doctorsApi } from '../../services/api';
+import { DoctorSearch } from '../DoctorSearch';
 
 const LANGUAGE_OPTIONS = [
   'English', 'Hindi', 'Punjabi', 'Rajasthani', 'Spanish', 'French', 'Arabic',
 ];
 
+interface LinkedDoctor {
+  id: string;
+  username: string;
+  displayName: string;
+}
+
 interface SettingsPanelProps {
   onClose: () => void;
   onProfileUpdated: () => void;
+  isInline?: boolean;
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfileUpdated }) => {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfileUpdated, isInline }) => {
+  const { user, refreshProfile } = useAuth();
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [profession, setProfession] = useState('');
   const [language, setLanguage] = useState('English');
   const [voice, setVoice] = useState<'female' | 'male'>('female');
-  const [doctorUsernames, setDoctorUsernames] = useState<string[]>([]);
-  const [newDoctor, setNewDoctor] = useState('');
-  const [doctorError, setDoctorError] = useState('');
+  const [linkedDoctors, setLinkedDoctors] = useState<LinkedDoctor[]>([]);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const p = StorageService.getActiveProfile();
-    if (p) {
-      setProfile(p);
-      setName(p.onboarding.preferredName === 'there' ? '' : p.onboarding.preferredName);
-      setAge(p.onboarding.age?.toString() || '');
-      setProfession(p.onboarding.profession || '');
-      setLanguage(p.onboarding.language || 'English');
-      setVoice(p.onboarding.voicePreference || 'female');
-      setDoctorUsernames(p.doctorUsernames || []);
+    async function load() {
+      try {
+        if (user) {
+          setName((user.displayName as string) || '');
+          setAge(user.age ? String(user.age) : '');
+          setProfession((user.profession as string) || '');
+          setLanguage((user.language as string) || 'English');
+          setVoice((user.voicePreference as 'female' | 'male') || 'female');
+        }
+        const docs = await doctorsApi.getMyLinkedDoctors();
+        setLinkedDoctors(docs.map(d => ({
+          id: d.id as string,
+          username: d.username as string,
+          displayName: d.displayName as string,
+        })));
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
     }
-  }, []);
+    load();
+  }, [user]);
 
-  function addDoctor() {
-    const trimmed = newDoctor.trim().toLowerCase();
-    if (!trimmed) return;
-
-    if (doctorUsernames.includes(trimmed)) {
-      setDoctorError('This doctor is already linked');
-      return;
-    }
-
-    const doctor = StorageService.getDoctorByUsername(trimmed);
-    if (!doctor) {
-      setDoctorError('No doctor found with this username');
-      return;
-    }
-
-    setDoctorUsernames(prev => [...prev, trimmed]);
-    setNewDoctor('');
-    setDoctorError('');
+  async function handleLink(doctorId: string) {
+    await doctorsApi.link(doctorId);
+    const docs = await doctorsApi.getMyLinkedDoctors();
+    setLinkedDoctors(docs.map(d => ({
+      id: d.id as string,
+      username: d.username as string,
+      displayName: d.displayName as string,
+    })));
   }
 
-  function removeDoctor(username: string) {
-    setDoctorUsernames(prev => prev.filter(d => d !== username));
+  async function handleUnlink(doctorId: string) {
+    await doctorsApi.unlink(doctorId);
+    setLinkedDoctors(prev => prev.filter(d => d.id !== doctorId));
   }
 
-  function handleSave() {
-    if (!profile) return;
-
-    const updated: UserProfile = {
-      ...profile,
-      displayName: name.trim() || 'User',
-      onboarding: {
-        ...profile.onboarding,
-        preferredName: name.trim() || 'there',
-        age: age ? parseInt(age, 10) : undefined,
-        profession: profession.trim() || undefined,
+  async function handleSave() {
+    try {
+      await usersApi.updateMe({
+        displayName: name.trim() || 'User',
+        age: age ? parseInt(age, 10) : null,
+        profession: profession.trim() || null,
         language,
         voicePreference: voice,
-        doctorUsernames: doctorUsernames.length > 0 ? doctorUsernames : undefined,
-      },
-      doctorUsernames: doctorUsernames.length > 0 ? doctorUsernames : undefined,
-    };
-
-    StorageService.saveProfile(updated);
-    setProfile(updated);
-    onProfileUpdated();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+      });
+      await refreshProfile();
+      onProfileUpdated();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // ignore
+    }
   }
 
-  if (!profile) {
+  if (loading) {
+    const loadingPanel = (
+      <div className={`settings-panel ${isInline ? 'settings-panel-inline' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="settings-header">
+          <h2>Settings</h2>
+          {!isInline && <button className="settings-close" onClick={onClose}><X size={20} /></button>}
+        </div>
+        <div className="settings-body">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+    if (isInline) return loadingPanel;
     return (
       <div className="settings-overlay" onClick={onClose}>
-        <div className="settings-panel" onClick={e => e.stopPropagation()}>
-          <div className="settings-header">
-            <h2>Settings</h2>
-            <button className="settings-close" onClick={onClose}><X size={20} /></button>
-          </div>
-          <div className="settings-body">
-            <p>No active profile. Please create a profile first.</p>
-          </div>
-        </div>
+        {loadingPanel}
       </div>
     );
   }
 
-  return (
-    <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={e => e.stopPropagation()}>
-        <div className="settings-header">
-          <h2>Settings</h2>
-          <button className="settings-close" onClick={onClose}><X size={20} /></button>
-        </div>
+  const panel = (
+    <div className={`settings-panel ${isInline ? 'settings-panel-inline' : ''}`} onClick={e => e.stopPropagation()}>
+      <div className="settings-header">
+        <h2>Settings</h2>
+        {!isInline && <button className="settings-close" onClick={onClose}><X size={20} /></button>}
+      </div>
 
         <div className="settings-body">
           {/* Profile Section */}
@@ -191,34 +197,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfile
           {/* My Doctors Section */}
           <div className="settings-section">
             <h3>My Doctors</h3>
-            {doctorUsernames.length > 0 ? (
-              <div className="doctor-chips">
-                {doctorUsernames.map(d => (
-                  <span key={d} className="doctor-chip">
-                    {d}
-                    <button onClick={() => removeDoctor(d)} title="Remove doctor">
-                      <Trash2 size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="settings-hint">No doctors linked yet.</p>
-            )}
-            <div className="doctor-add-row">
-              <input
-                type="text"
-                className="settings-input"
-                placeholder="Doctor's username"
-                value={newDoctor}
-                onChange={e => { setNewDoctor(e.target.value.toLowerCase()); setDoctorError(''); }}
-                onKeyDown={e => e.key === 'Enter' && addDoctor()}
-              />
-              <button className="doctor-add-btn" onClick={addDoctor} title="Add doctor">
-                <Plus size={16} />
-              </button>
-            </div>
-            {doctorError && <p className="settings-error">{doctorError}</p>}
+            <DoctorSearch
+              linkedDoctors={linkedDoctors}
+              onLink={handleLink}
+              onUnlink={handleUnlink}
+            />
           </div>
         </div>
 
@@ -229,6 +212,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfile
           </button>
         </div>
       </div>
+  );
+
+  if (isInline) return panel;
+
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      {panel}
     </div>
   );
 };

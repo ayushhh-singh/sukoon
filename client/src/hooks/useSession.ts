@@ -2,7 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useWebSocket } from './useWebSocket';
 import { useAudioCapture } from './useAudioCapture';
 import { useAudioPlayback } from './useAudioPlayback';
+import { useAuth } from '../contexts/AuthContext';
 import { StorageService } from '../services/storage';
+import { moods as moodsApi, assessments as assessmentsApi, sessions as sessionsApi } from '../services/api';
 import { scoreAssessment } from '../utils/assessmentScoring';
 import { selectAssessmentForConcerns } from '../utils/assessmentMapping';
 import { PHQ9_CONFIG } from '../data/assessmentQuestions';
@@ -16,14 +18,15 @@ import type {
 } from '../types';
 import type { AssessmentResult, AssessmentConfig, AssessmentResponse } from '../types/assessments';
 import type { MoodEntry } from '../types/mood';
-import type { OnboardingData, SessionSummary, BookmarkedStrategy, AmbientSound, UserProfile, DoctorProfile } from '../types/session';
+import type { SessionSummary, BookmarkedStrategy, AmbientSound } from '../types/session';
 import type { SessionMode, ChatMessage } from '../types/chat';
 
 export function useSession() {
-  // Always start at role-select
+  const { user } = useAuth();
+
+  // Always start at role-select (pre-auth phases)
   const [phase, setPhase] = useState<SessionPhase>('role-select');
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [authenticatedDoctor, setAuthenticatedDoctor] = useState<DoctorProfile | null>(null);
   const [speakingState, setSpeakingState] = useState<SpeakingState>('idle');
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
   const [crisisResources, setCrisisResources] = useState<CrisisResources | null>(null);
@@ -31,9 +34,6 @@ export function useSession() {
   const [currentAiText, setCurrentAiText] = useState('');
   const [sessionDuration, setSessionDuration] = useState(0);
 
-  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(
-    StorageService.getOnboarding()
-  );
   const [preMood, setPreMood] = useState<MoodEntry | null>(null);
   const [postMood, setPostMood] = useState<MoodEntry | null>(null);
   const [preAssessmentResult, setPreAssessmentResult] = useState<AssessmentResult | null>(null);
@@ -45,17 +45,14 @@ export function useSession() {
   // Session goal (reset each session)
   const [sessionGoal, setSessionGoal] = useState('');
 
-  // Concerns selected for this specific session (may differ from onboarding)
+  // Concerns selected for this specific session
   const [sessionConcerns, setSessionConcerns] = useState<string[]>([]);
 
-  // Ambient sound preference (persisted)
+  // Ambient sound preference (persisted locally)
   const [ambientSound, setAmbientSoundState] = useState<AmbientSound>(StorageService.getAmbientSound());
 
-  // Bookmarks (persisted)
+  // Bookmarks (persisted locally for now)
   const [bookmarks, setBookmarks] = useState<BookmarkedStrategy[]>(StorageService.getBookmarks());
-
-  // History overlay
-  const [showHistory, setShowHistory] = useState(false);
 
   // Exercises panel + individual exercise overlay state
   const [showExercisesPanel, setShowExercisesPanel] = useState(false);
@@ -65,15 +62,6 @@ export function useSession() {
   const [sessionMode, setSessionMode] = useState<SessionMode>('voice');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const chatMessageIdCounter = useRef(0);
-
-  // Progress dashboard overlay
-  const [showProgress, setShowProgress] = useState(false);
-
-  // Therapist dashboard overlay
-  const [showTherapist, setShowTherapist] = useState(false);
-
-  // Journal overlay
-  const [showJournal, setShowJournal] = useState(false);
 
   // Prior session linker
   const [linkedPriorSession, setLinkedPriorSession] = useState<SessionSummary | null>(null);
@@ -166,8 +154,6 @@ export function useSession() {
         case 'session.summary':
           if (message.summary) {
             summaryDataRef.current = message.summary;
-            // If the user already navigated past post-mood (summary is built),
-            // patch the existing summary state with the AI data that just arrived.
             setSessionSummary(prev => {
               if (!prev) return prev;
               const sd = message.summary!;
@@ -204,49 +190,46 @@ export function useSession() {
 
   // --- Phase transitions ---
 
-  const acceptConsent = useCallback(() => {
-    StorageService.setConsented();
-    setPhase('profile-select');
-  }, []);
-
-  const selectProfile = useCallback((profile: UserProfile) => {
-    StorageService.setActiveProfileId(profile.id);
-    setOnboardingData(profile.onboarding);
-    setSessionConcerns([]);
-    setPhase('concern-select');
-  }, []);
-
-  const completeSessionConcerns = useCallback((concerns: string[]) => {
+  const completeSessionConcerns = useCallback(async (concerns: string[]) => {
     setSessionConcerns(concerns);
     setSelectedAssessment(selectAssessmentForConcerns(concerns));
-    const activeId = StorageService.getActiveProfileId();
-    if (activeId) StorageService.saveLastConcerns(activeId, concerns);
-    const past = activeId ? StorageService.getSessionsForUser(activeId) : [];
-    if (past.length > 0) {
-      setPriorSessions(past);
-      setPhase('prior-session');
-    } else {
-      setPhase('pre-mood');
+    // Fetch prior sessions from API
+    try {
+      const pastRaw = await sessionsApi.list();
+      if (pastRaw.length > 0) {
+        const past = pastRaw.map(normalizeSummary);
+        setPriorSessions(past);
+        setPhase('prior-session');
+        return;
+      }
+    } catch {
+      // ignore
     }
+    setPhase('pre-mood');
   }, []);
 
-  const skipSessionConcerns = useCallback(() => {
-    const activeId = StorageService.getActiveProfileId();
-    const last = activeId ? StorageService.getLastConcerns(activeId) : [];
-    if (last.length > 0) {
-      setSessionConcerns(last);
-      setSelectedAssessment(selectAssessmentForConcerns(last));
+  const skipSessionConcerns = useCallback(async () => {
+    // Use user's primary concerns from auth profile as fallback
+    const userConcerns = (user?.primaryConcerns as string[]) || [];
+    if (userConcerns.length > 0) {
+      setSessionConcerns(userConcerns);
+      setSelectedAssessment(selectAssessmentForConcerns(userConcerns));
     } else {
       setSessionConcerns([]);
     }
-    const past = activeId ? StorageService.getSessionsForUser(activeId) : [];
-    if (past.length > 0) {
-      setPriorSessions(past);
-      setPhase('prior-session');
-    } else {
-      setPhase('pre-mood');
+    try {
+      const pastRaw = await sessionsApi.list();
+      if (pastRaw.length > 0) {
+        const past = pastRaw.map(normalizeSummary);
+        setPriorSessions(past);
+        setPhase('prior-session');
+        return;
+      }
+    } catch {
+      // ignore
     }
-  }, []);
+    setPhase('pre-mood');
+  }, [user]);
 
   const selectPriorSession = useCallback((session: SessionSummary) => {
     setLinkedPriorSession(session);
@@ -258,54 +241,35 @@ export function useSession() {
     setPhase('pre-mood');
   }, []);
 
-  const startNewUserFlow = useCallback(() => {
-    setPhase('onboarding');
-  }, []);
-
-  const switchUser = useCallback(() => {
-    setPhase('profile-select');
-  }, []);
-
-  const completeOnboarding = useCallback((data: OnboardingData) => {
-    const profile: UserProfile = {
-      id: `profile-${Date.now()}`,
-      displayName: data.preferredName !== 'there' ? data.preferredName : 'User',
-      createdAt: new Date().toISOString(),
-      onboarding: data,
-      doctorUsernames: data.doctorUsernames,
-    };
-    StorageService.saveProfile(profile);
-    StorageService.setActiveProfileId(profile.id);
-    setOnboardingData(data);
-    setSelectedAssessment(selectAssessmentForConcerns(data.primaryConcerns));
-    setPhase('pre-mood');
-  }, []);
-
-  const skipOnboarding = useCallback(() => {
-    const d: OnboardingData = { preferredName: 'there', primaryConcerns: [], therapyExperience: 'none' };
-    const profile: UserProfile = {
-      id: `profile-${Date.now()}`,
-      displayName: 'User',
-      createdAt: new Date().toISOString(),
-      onboarding: d,
-    };
-    StorageService.saveProfile(profile);
-    StorageService.setActiveProfileId(profile.id);
-    setOnboardingData(d);
-    setPhase('pre-mood');
-  }, []);
-
-  const selectPreMood = useCallback((mood: MoodEntry) => {
+  const selectPreMood = useCallback(async (mood: MoodEntry) => {
     mood.sessionId = sessionIdRef.current;
     setPreMood(mood);
-    StorageService.saveMood(mood);
+    // Save mood via API
+    try {
+      await moodsApi.create({
+        value: mood.value,
+        label: mood.label,
+        emoji: mood.emoji,
+        context: mood.context,
+        sessionId: mood.sessionId,
+      });
+    } catch {
+      // fallback: save locally
+      StorageService.saveMood(mood);
+    }
     setPhase('pre-assessment');
   }, []);
 
-  const completePreAssessment = useCallback((responses: AssessmentResponse[]) => {
-    // Capture previous assessment BEFORE saving current one
-    const prev = StorageService.getLatestAssessment(selectedAssessment.type);
-    setPreviousAssessmentResult(prev);
+  const completePreAssessment = useCallback(async (responses: AssessmentResponse[]) => {
+    // Get previous assessment from API
+    try {
+      const prev = await assessmentsApi.getLatest(selectedAssessment.type);
+      if (prev) {
+        setPreviousAssessmentResult(prev as unknown as AssessmentResult);
+      }
+    } catch {
+      // ignore
+    }
 
     const scoring = scoreAssessment(selectedAssessment, responses);
     const result: AssessmentResult = {
@@ -314,7 +278,21 @@ export function useSession() {
       completedAt: new Date().toISOString(), sessionId: sessionIdRef.current, timing: 'pre-session',
     };
     setPreAssessmentResult(result);
-    StorageService.saveAssessment(result);
+
+    // Save via API
+    try {
+      await assessmentsApi.create({
+        type: result.type,
+        responses: result.responses,
+        totalScore: result.totalScore,
+        severity: result.severity,
+        color: result.color,
+        sessionId: result.sessionId,
+        timing: result.timing,
+      });
+    } catch {
+      StorageService.saveAssessment(result);
+    }
     setViewingResults(true);
   }, [selectedAssessment]);
 
@@ -336,11 +314,6 @@ export function useSession() {
       const key = preAssessmentResult.type.toLowerCase();
       assessCtx[`${key}Score`] = preAssessmentResult.totalScore;
       assessCtx[`${key}Severity`] = preAssessmentResult.severity;
-      const prev = StorageService.getAssessments()
-        .filter(a => a.type === preAssessmentResult.type && a.id !== preAssessmentResult.id)
-        .slice(-5)
-        .map(a => ({ type: a.type, score: a.totalScore, date: a.completedAt.split('T')[0] }));
-      if (prev.length > 0) assessCtx.previousScores = prev;
     }
 
     const priorCtx = linkedPriorSession ? {
@@ -354,40 +327,57 @@ export function useSession() {
       preliminaryDiagnosis: linkedPriorSession.preliminaryDiagnosis,
     } : undefined;
 
+    // Build user preferences from AuthContext user data
+    const userPrefs: Record<string, unknown> = {};
+    if (user) {
+      userPrefs.preferredName = (user.displayName as string) || 'there';
+      userPrefs.primaryConcerns = sessionConcerns.length > 0 ? sessionConcerns : ((user.primaryConcerns as string[]) || []);
+      userPrefs.therapyExperience = (user.therapyExperience as string) || 'none';
+      userPrefs.language = (user.language as string) || 'English';
+      userPrefs.voicePreference = (user.voicePreference as string) || 'female';
+      if (sessionGoal.trim()) userPrefs.goalForToday = sessionGoal.trim();
+      if (user.age) userPrefs.age = user.age;
+      if (user.profession) userPrefs.profession = user.profession;
+    }
+
     return {
       assessmentContext: Object.keys(assessCtx).length > 0 ? assessCtx : undefined,
-      userPreferences: onboardingData
-        ? {
-            ...onboardingData,
-            primaryConcerns: sessionConcerns.length > 0 ? sessionConcerns : onboardingData.primaryConcerns,
-            goalForToday: sessionGoal.trim() || undefined,
-          }
-        : undefined,
+      userPreferences: Object.keys(userPrefs).length > 0 ? userPrefs : undefined,
       priorSessionContext: priorCtx,
     };
-  }, [preAssessmentResult, onboardingData, sessionConcerns, sessionGoal, linkedPriorSession]);
+  }, [preAssessmentResult, user, sessionConcerns, sessionGoal, linkedPriorSession]);
 
   const startSession = useCallback(async () => {
+    const t = () => new Date().toISOString();
+    console.log(`[${t()}] [Session] startSession | mode: ${sessionMode}`);
     if (sessionMode === 'chat') {
-      // Chat mode — no microphone needed
-      connect();
-      setPhase('active');
-      setChatMessages([]);
-      setTimeout(() => {
-        send({ type: 'chat.start', ...buildSessionContext() });
-      }, 500);
-    } else {
-      // Voice mode — existing behavior
       try {
-        connect();
+        console.log(`[${t()}] [Session] Connecting WS for chat...`);
+        await connect();
+        console.log(`[${t()}] [Session] WS connected, setting phase=active`);
+        setPhase('active');
+        setChatMessages([]);
+        const ctx = buildSessionContext();
+        console.log(`[${t()}] [Session] Sending chat.start`);
+        send({ type: 'chat.start', ...ctx });
+      } catch (err) {
+        console.error(`[${t()}] [Session] Chat connection failed:`, err);
+        setErrorMessage('Could not connect to the server. Please check your connection and try again.');
+        setPhase('ready');
+      }
+    } else {
+      try {
+        console.log(`[${t()}] [Session] Connecting WS for voice...`);
+        await connect();
+        console.log(`[${t()}] [Session] WS connected, starting audio capture...`);
         setPhase('active');
         await startCapture((base64: string) => {
           send({ type: 'audio.append', audio: base64 });
         });
-        setTimeout(() => {
-          send({ type: 'session.start', ...buildSessionContext() });
-        }, 500);
-      } catch {
+        console.log(`[${t()}] [Session] Audio capture started, sending session.start`);
+        send({ type: 'session.start', ...buildSessionContext() });
+      } catch (err) {
+        console.error(`[${t()}] [Session] startSession error:`, err);
         setErrorMessage('Could not access your microphone. Please allow microphone access and try again.');
         setPhase('ready');
       }
@@ -417,12 +407,21 @@ export function useSession() {
     }, 25000);
   }, [sessionMode, stopCapture, stopPlayback, send, disconnect]);
 
-  // Post-mood now goes directly to summary (rating phase removed)
-  const selectPostMood = useCallback((mood: MoodEntry) => {
+  const selectPostMood = useCallback(async (mood: MoodEntry) => {
     mood.sessionId = sessionIdRef.current;
     setPostMood(mood);
-    StorageService.saveMood(mood);
-    // Build and save summary directly — no rating step
+    // Save mood via API
+    try {
+      await moodsApi.create({
+        value: mood.value,
+        label: mood.label,
+        emoji: mood.emoji,
+        context: mood.context,
+        sessionId: mood.sessionId,
+      });
+    } catch {
+      StorageService.saveMood(mood);
+    }
     buildAndSaveSummary(mood);
     setPhase('summary');
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -432,7 +431,7 @@ export function useSession() {
     const sd = summaryDataRef.current;
     const summary: SessionSummary = {
       id: `summary-${Date.now()}`, sessionId: sessionIdRef.current,
-      userId: StorageService.getActiveProfileId() ?? undefined,
+      userId: user?.id,
       date: new Date().toISOString(), duration: sessionDuration, mode: sessionMode,
       keyTakeaways: sd?.keyTakeaways || [],
       copingStrategies: sd?.copingStrategies || [],
@@ -454,31 +453,24 @@ export function useSession() {
       transcriptEntries: transcripts,
     };
     setSessionSummary(summary);
-    StorageService.saveSession(summary);
-
-    // Update streak and milestones
-    const activeId = StorageService.getActiveProfileId();
-    if (activeId) {
-      StorageService.updateStreak(activeId);
-      StorageService.checkAndUnlockMilestones(activeId);
-    }
+    // Server already saves session via websocket.ts — no need to duplicate
   }
 
-  const saveReflection = useCallback((text: string) => {
+  const saveReflection = useCallback(async (text: string) => {
     setSessionSummary(prev => {
       if (!prev) return prev;
-      const updated = { ...prev, userReflection: text };
-      const sessions = StorageService.getSessions();
-      const idx = sessions.findIndex(s => s.id === updated.id);
-      if (idx >= 0) {
-        sessions[idx] = updated;
-        try { localStorage.setItem('sukoon_sessions', JSON.stringify(sessions)); } catch { /* */ }
-      }
-      return updated;
+      return { ...prev, userReflection: text };
     });
+    // Save reflection via API
+    try {
+      const sid = sessionIdRef.current;
+      await sessionsApi.updateReflection(sid, text);
+    } catch {
+      // ignore
+    }
   }, []);
 
-  // New session keeps user profile, resets only session-specific state
+  // New session — resets only session-specific state
   const newSession = useCallback(() => {
     setPreMood(null);
     setPostMood(null);
@@ -498,27 +490,10 @@ export function useSession() {
     setPhase('concern-select');
   }, []);
 
-  // Full reset back to role-select (logout / home)
+  // Go home resets to concern-select (role/auth handled by AuthContext)
   const goHome = useCallback(() => {
-    setPhase('role-select');
-    setUserRole(null);
-    setAuthenticatedDoctor(null);
-    setPreMood(null);
-    setPostMood(null);
-    setPreAssessmentResult(null);
-    setPreviousAssessmentResult(null);
-    setSessionSummary(null);
-    setViewingResults(false);
-    setSessionGoal('');
-    setSessionConcerns([]);
-    setTranscripts([]);
-    setChatMessages([]);
-    setSessionMode('voice');
-    setLinkedPriorSession(null);
-    setPriorSessions([]);
-    summaryDataRef.current = undefined;
-    sessionIdRef.current = `session-${Date.now()}`;
-  }, []);
+    newSession();
+  }, [newSession]);
 
   const dismissError = useCallback(() => setErrorMessage(null), []);
   const dismissCrisis = useCallback(() => setCrisisResources(null), []);
@@ -539,10 +514,6 @@ export function useSession() {
     setBookmarks(StorageService.getBookmarks());
   }, []);
 
-  // History overlay
-  const openHistory = useCallback(() => setShowHistory(true), []);
-  const closeHistory = useCallback(() => setShowHistory(false), []);
-
   const toggleExercisesPanel = useCallback(() => setShowExercisesPanel(p => !p), []);
   const toggleExercise = useCallback((id: string) => {
     setActiveExercises(p => ({ ...p, [id]: !p[id] }));
@@ -550,74 +521,24 @@ export function useSession() {
   const onTimerReminder = useCallback((msg: string) => setErrorMessage(msg), []);
   const onDurationUpdate = useCallback((s: number) => setSessionDuration(s), []);
 
-  // Progress & Therapist dashboard
-  const openProgress = useCallback(() => setShowProgress(true), []);
-  const closeProgress = useCallback(() => setShowProgress(false), []);
-  const openTherapist = useCallback(() => setShowTherapist(true), []);
-  const closeTherapist = useCallback(() => setShowTherapist(false), []);
-
-  // Journal
-  const openJournal = useCallback(() => setShowJournal(true), []);
-  const closeJournal = useCallback(() => setShowJournal(false), []);
-
-  // Settings panel
-  const [showSettings, setShowSettings] = useState(false);
-  const openSettings = useCallback(() => setShowSettings(true), []);
-  const closeSettings = useCallback(() => setShowSettings(false), []);
-
-  // Role selection
+  // Role selection (pre-auth)
   const selectRole = useCallback((role: UserRole) => {
     setUserRole(role);
-    if (role === 'patient') {
-      setPhase(StorageService.hasConsented() ? 'profile-select' : 'consent');
-    }
-    // For 'doctor', App.tsx will render TherapistLogin based on userRole
   }, []);
 
-  const handleDoctorAuth = useCallback((doctor: DoctorProfile) => {
-    setAuthenticatedDoctor(doctor);
-  }, []);
-
-  const handleDoctorLogout = useCallback(() => {
-    setAuthenticatedDoctor(null);
-    setUserRole(null);
-    setPhase('role-select');
-    sessionStorage.removeItem('sukoon_therapist_auth');
-  }, []);
-
-  // Refresh profile data after settings change
+  // Refresh profile data (after settings change)
   const refreshProfile = useCallback(() => {
-    const profile = StorageService.getActiveProfile();
-    if (profile) {
-      setOnboardingData(profile.onboarding);
-    }
+    // No-op now; PatientSettings calls AuthContext.refreshProfile directly
   }, []);
 
   // Go back to previous phase
   const goBack = useCallback(() => {
     switch (phase) {
       case 'role-select':
-        // Back from doctor login → reset to role selection root
         setUserRole(null);
-        setAuthenticatedDoctor(null);
-        break;
-      case 'consent':
-        setUserRole(null);
-        setPhase('role-select');
-        break;
-      case 'profile-select':
-        if (StorageService.hasConsented()) {
-          setUserRole(null);
-          setPhase('role-select');
-        } else {
-          setPhase('consent');
-        }
-        break;
-      case 'onboarding':
-        setPhase('profile-select');
         break;
       case 'concern-select':
-        setPhase('profile-select');
+        // Already at start for authenticated patients
         break;
       case 'prior-session':
         setPhase('concern-select');
@@ -648,20 +569,15 @@ export function useSession() {
     phase, connectionStatus: status, speakingState, transcripts,
     crisisResources, errorMessage, micVolume, aiVolume, currentAiText,
     isMuted, toggleMute,
-    sessionDuration, onboardingData, preAssessmentResult, previousAssessmentResult,
+    sessionDuration, preAssessmentResult, previousAssessmentResult,
     preMood, postMood, sessionSummary, selectedAssessment,
     viewingResults, showExercisesPanel, activeExercises,
     sessionConcerns, sessionGoal, setSessionGoal,
     ambientSound, setAmbientSound,
     bookmarks, toggleBookmark,
-    showHistory, openHistory, closeHistory,
-    showProgress, openProgress, closeProgress,
-    showTherapist, openTherapist, closeTherapist,
-    showJournal, openJournal, closeJournal,
-    showSettings, openSettings, closeSettings,
 
-    // Role & doctor
-    userRole, selectRole, authenticatedDoctor, handleDoctorAuth, handleDoctorLogout,
+    // Role (pre-auth)
+    userRole, selectRole,
 
     // Chat mode
     sessionMode, selectMode, chatMessages, sendChatMessage,
@@ -671,7 +587,6 @@ export function useSession() {
 
     priorSessions, selectPriorSession, skipPriorSession,
 
-    acceptConsent, selectProfile, startNewUserFlow, switchUser, completeOnboarding, skipOnboarding,
     completeSessionConcerns, skipSessionConcerns,
     selectPreMood, completePreAssessment, skipPreAssessment, confirmPreAssessmentResults,
     startSession, endSession,
@@ -679,5 +594,36 @@ export function useSession() {
     saveReflection, newSession, goHome, dismissError, dismissCrisis,
     toggleExercisesPanel, toggleExercise,
     onTimerReminder, onDurationUpdate,
+  };
+}
+
+// Normalize a raw API session record to SessionSummary shape
+function normalizeSummary(raw: Record<string, unknown>): SessionSummary {
+  return {
+    id: raw.id as string,
+    sessionId: (raw.session_id || raw.sessionId) as string,
+    userId: (raw.user_id || raw.userId) as string,
+    date: (raw.date || raw.created_at) as string,
+    duration: (raw.duration || 0) as number,
+    mode: (raw.mode || 'voice') as 'voice' | 'chat',
+    keyTakeaways: (raw.key_takeaways || raw.keyTakeaways || []) as string[],
+    copingStrategies: (raw.coping_strategies || raw.copingStrategies || []) as string[],
+    homeworkAssignments: (raw.homework_assignments || raw.homeworkAssignments || []) as string[],
+    topicsDiscussed: (raw.topics_discussed || raw.topicsDiscussed || []) as string[],
+    emotionalThemes: (raw.emotional_themes || raw.emotionalThemes || []) as string[],
+    issuesIdentified: (raw.issues_identified || raw.issuesIdentified || []) as string[],
+    conversationAssessment: (raw.conversation_assessment || raw.conversationAssessment || '') as string,
+    emotionalJourney: (raw.emotional_journey || raw.emotionalJourney || '') as string,
+    riskLevel: (raw.risk_level || raw.riskLevel || 'low') as 'low' | 'moderate' | 'elevated',
+    suggestedFocusAreas: (raw.suggested_focus_areas || raw.suggestedFocusAreas || []) as string[],
+    techniquesUsed: (raw.techniques_used || raw.techniquesUsed || []) as string[],
+    clinicalImpression: (raw.clinical_impression || raw.clinicalImpression) as string | undefined,
+    preliminaryDiagnosis: (raw.preliminary_diagnosis || raw.preliminaryDiagnosis) as string | undefined,
+    recommendedActions: (raw.recommended_actions || raw.recommendedActions || []) as string[],
+    wayForward: (raw.way_forward || raw.wayForward) as string | undefined,
+    preMood: (raw.preMood || raw.pre_mood || null) as MoodEntry | null,
+    postMood: (raw.postMood || raw.post_mood || null) as MoodEntry | null,
+    preAssessment: (raw.preAssessment || raw.pre_assessment || null) as AssessmentResult | null,
+    transcriptEntries: (raw.transcript || raw.transcriptEntries || []) as TranscriptEntry[],
   };
 }

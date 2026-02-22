@@ -1,10 +1,30 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
+import url from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { buildSystemPrompt, buildGreetingInstruction } from './systemPrompt';
 import type { SessionContext } from './systemPrompt';
 import { assessCrisisLevel } from './crisisDetection';
 import { streamChatCompletion } from './chatCompletions';
+import { verifyToken } from './auth/auth';
+import * as sessionRepo from './db/repositories/sessionRepo';
+
+// ---- Timestamped Logger ----
+function ts(): string {
+  return new Date().toISOString();
+}
+
+function log(sessionId: string, userLabel: string, msg: string): void {
+  console.log(`[${ts()}] [Session ${sessionId}] [${userLabel}] ${msg}`);
+}
+
+function logWarn(sessionId: string, userLabel: string, msg: string): void {
+  console.warn(`[${ts()}] [Session ${sessionId}] [${userLabel}] ${msg}`);
+}
+
+function logError(sessionId: string, userLabel: string, msg: string, err?: unknown): void {
+  console.error(`[${ts()}] [Session ${sessionId}] [${userLabel}] ${msg}`, err || '');
+}
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17';
@@ -13,6 +33,8 @@ const MAX_CONCURRENT_SESSIONS = 10;
 
 interface Session {
   id: string;
+  userId: string | null; // authenticated user ID from JWT
+  userLabel: string;     // human-readable label for logs (email or "anonymous")
   clientWs: WebSocket;
   openaiWs: WebSocket | null;
   createdAt: Date;
@@ -32,7 +54,7 @@ const activeSessions = new Map<string, Session>();
 export function setupWebSocket(server: http.Server): void {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', (clientWs: WebSocket) => {
+  wss.on('connection', (clientWs: WebSocket, req: http.IncomingMessage) => {
     // Rate limiting: max concurrent sessions
     if (activeSessions.size >= MAX_CONCURRENT_SESSIONS) {
       clientWs.send(JSON.stringify({
@@ -43,11 +65,26 @@ export function setupWebSocket(server: http.Server): void {
       return;
     }
 
+    // Extract JWT from query parameter for auth
+    const parsedUrl = url.parse(req.url || '', true);
+    const token = parsedUrl.query.token as string | undefined;
+    let userId: string | null = null;
+    let userLabel = 'anonymous';
+    if (token) {
+      const payload = verifyToken(token);
+      if (payload) {
+        userId = payload.id;
+        userLabel = `${payload.email} (${payload.role})`;
+      }
+    }
+
     const sessionId = uuidv4();
-    console.log(`[Session ${sessionId}] Client connected`);
+    log(sessionId, userLabel, `Client connected | active sessions: ${activeSessions.size + 1}`);
 
     const session: Session = {
       id: sessionId,
+      userId,
+      userLabel,
       clientWs,
       openaiWs: null,
       createdAt: new Date(),
@@ -74,26 +111,27 @@ export function setupWebSocket(server: http.Server): void {
     });
 
     clientWs.on('close', () => {
-      console.log(`[Session ${sessionId}] Client disconnected`);
+      log(sessionId, userLabel, 'Client disconnected');
       cleanupSession(session);
     });
 
     clientWs.on('error', (error: Error) => {
-      console.error(`[Session ${sessionId}] Client WebSocket error:`, error.message);
+      logError(sessionId, userLabel, `Client WebSocket error: ${error.message}`);
       cleanupSession(session);
     });
   });
 
-  console.log('[Sukoon] WebSocket server initialized on /ws');
+  console.log(`[${ts()}] [Sukoon] WebSocket server initialized on /ws`);
 }
 
 function handleClientMessage(session: Session, data: Buffer | string): void {
   try {
     const message = JSON.parse(data.toString());
+    const u = session.userLabel;
 
     switch (message.type) {
       case 'session.start':
-        // Client can send optional context with session start
+        log(session.id, u, `>> session.start (voice) | preferences: ${JSON.stringify(message.userPreferences?.preferredName || 'none')}`);
         session.context = {
           assessmentContext: message.assessmentContext,
           userPreferences: message.userPreferences,
@@ -131,6 +169,7 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
         break;
 
       case 'session.end':
+        log(session.id, u, `>> session.end | mode: ${session.mode} | responseActive: ${session.isResponseActive} | transcripts: ${session.transcriptBuffer.length}`);
         if (session.mode === 'chat') {
           requestChatSummaryAndCleanup(session);
         } else if (session.isResponseActive) {
@@ -138,13 +177,14 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
           if (session.openaiWs?.readyState === WebSocket.OPEN) {
             session.openaiWs.send(JSON.stringify({ type: 'response.cancel' }));
           }
-          console.log(`[Session ${session.id}] Session end deferred — waiting for active response to finish`);
+          log(session.id, u, 'Session end deferred — waiting for active response to finish');
         } else {
           requestSummaryAndCleanup(session);
         }
         break;
 
       case 'chat.start':
+        log(session.id, u, `>> chat.start | preferences: ${JSON.stringify(message.userPreferences?.preferredName || 'none')}`);
         session.mode = 'chat';
         session.context = {
           assessmentContext: message.assessmentContext,
@@ -156,15 +196,16 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
 
       case 'chat.message':
         if (session.mode === 'chat' && message.text) {
+          log(session.id, u, `>> chat.message | length: ${message.text.length} chars`);
           handleChatMessage(session, message.text);
         }
         break;
 
       default:
-        console.warn(`[Session ${session.id}] Unknown message type: ${message.type}`);
+        logWarn(session.id, u, `Unknown message type: ${message.type}`);
     }
   } catch (error) {
-    console.error(`[Session ${session.id}] Error parsing client message:`, error);
+    logError(session.id, session.userLabel, 'Error parsing client message', error);
   }
 }
 
@@ -177,7 +218,7 @@ function connectToOpenAI(session: Session): void {
     return;
   }
 
-  console.log(`[Session ${session.id}] Connecting to OpenAI Realtime API...`);
+  log(session.id, session.userLabel, 'Connecting to OpenAI Realtime API...');
 
   sendToClient(session.clientWs, {
     type: 'session.status',
@@ -195,7 +236,7 @@ function connectToOpenAI(session: Session): void {
 
   // Session timeout
   session.timeoutHandle = setTimeout(() => {
-    console.log(`[Session ${session.id}] Session timeout (${SESSION_TIMEOUT_MS / 60000} min)`);
+    log(session.id, session.userLabel, `Session timeout (${SESSION_TIMEOUT_MS / 60000} min)`);
     sendToClient(session.clientWs, {
       type: 'session.timeout',
       message: 'Your session has reached the maximum duration. The session will now end.',
@@ -204,7 +245,7 @@ function connectToOpenAI(session: Session): void {
   }, SESSION_TIMEOUT_MS);
 
   openaiWs.on('open', () => {
-    console.log(`[Session ${session.id}] Connected to OpenAI Realtime API`);
+    log(session.id, session.userLabel, 'Connected to OpenAI Realtime API');
 
     // Build dynamic system prompt with context
     const systemPrompt = buildSystemPrompt(session.context);
@@ -243,7 +284,7 @@ function connectToOpenAI(session: Session): void {
   });
 
   openaiWs.on('close', (code: number, reason: Buffer) => {
-    console.log(`[Session ${session.id}] OpenAI connection closed: ${code} ${reason.toString()}`);
+    log(session.id, session.userLabel, `OpenAI connection closed: ${code} ${reason.toString()}`);
     sendToClient(session.clientWs, {
       type: 'session.status',
       status: 'disconnected',
@@ -251,7 +292,7 @@ function connectToOpenAI(session: Session): void {
   });
 
   openaiWs.on('error', (error: Error) => {
-    console.error(`[Session ${session.id}] OpenAI WebSocket error:`, error.message);
+    logError(session.id, session.userLabel, `OpenAI WebSocket error: ${error.message}`);
     sendToClient(session.clientWs, {
       type: 'error',
       message: 'Connection to AI service failed. Please try again.',
@@ -265,11 +306,11 @@ function handleOpenAIMessage(session: Session, data: Buffer | string): void {
 
     switch (message.type) {
       case 'session.created':
-        console.log(`[Session ${session.id}] OpenAI session established`);
+        log(session.id, session.userLabel, 'OpenAI session established');
         break;
 
       case 'session.updated':
-        console.log(`[Session ${session.id}] OpenAI session configured`);
+        log(session.id, session.userLabel, 'OpenAI session configured — sending greeting');
         // Trigger contextual greeting
         session.openaiWs?.send(JSON.stringify({
           type: 'response.create',
@@ -368,7 +409,7 @@ function handleOpenAIMessage(session: Session, data: Buffer | string): void {
         break;
 
       case 'error':
-        console.error(`[Session ${session.id}] OpenAI error:`, message.error);
+        logError(session.id, session.userLabel, `OpenAI error: ${JSON.stringify(message.error)}`);
         sendToClient(session.clientWs, {
           type: 'error',
           message: 'An error occurred during the conversation. Please try again.',
@@ -377,12 +418,13 @@ function handleOpenAIMessage(session: Session, data: Buffer | string): void {
         break;
 
       default:
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Session ${session.id}] OpenAI event: ${message.type}`);
+        // Log non-frequent OpenAI events (skip noisy audio deltas)
+        if (!['response.audio.delta', 'response.audio_transcript.delta'].includes(message.type)) {
+          log(session.id, session.userLabel, `<< OpenAI: ${message.type}`);
         }
     }
   } catch (error) {
-    console.error(`[Session ${session.id}] Error parsing OpenAI message:`, error);
+    logError(session.id, session.userLabel, 'Error parsing OpenAI message', error);
   }
 }
 
@@ -390,7 +432,7 @@ function performCrisisCheck(session: Session, transcript: string): void {
   const assessment = assessCrisisLevel(transcript);
 
   if (assessment.level !== 'none') {
-    console.warn(`[Session ${session.id}] Crisis assessment: ${assessment.level} — triggers: ${assessment.triggers.join(', ')}`);
+    logWarn(session.id, session.userLabel, `Crisis assessment: ${assessment.level} — triggers: ${assessment.triggers.join(', ')}`);
   }
 
   // Show modal only for high/critical, and only once
@@ -409,17 +451,8 @@ function performCrisisCheck(session: Session, transcript: string): void {
   }
 }
 
-function requestSummaryAndCleanup(session: Session): void {
-  // If there's a conversation to summarize and the OpenAI connection is still open
-  if (session.openaiWs?.readyState === WebSocket.OPEN && session.transcriptBuffer.length >= 2 && !session.isSummaryRequested) {
-    session.isSummaryRequested = true;
-    console.log(`[Session ${session.id}] Requesting session summary...`);
-
-    session.openaiWs.send(JSON.stringify({
-      type: 'response.create',
-      response: {
-        modalities: ['text'],
-        instructions: `Generate a comprehensive JSON clinical summary of this therapy session. Respond ONLY with valid JSON, no markdown, no explanation. Format:
+function buildSummaryPrompt(): string {
+  return `Generate a comprehensive JSON clinical summary of this therapy session. Respond ONLY with valid JSON, no markdown, no explanation. Format:
 {
   "keyTakeaways": ["insight 1", "insight 2"],
   "copingStrategies": ["strategy 1"],
@@ -435,7 +468,12 @@ function requestSummaryAndCleanup(session: Session): void {
   "clinicalImpression": "A clinical observation paragraph.",
   "preliminaryDiagnosis": "DSM-5 aligned diagnostic impression.",
   "recommendedActions": ["action 1"],
-  "wayForward": "Therapeutic path narrative."
+  "wayForward": "Therapeutic path narrative.",
+  "rootCauseAnalysis": "Narrative analysis of underlying root causes identified during the session.",
+  "triggerPoints": ["trigger 1", "trigger 2"],
+  "familyHistory": "Relevant family mental health history and dynamics disclosed during the session.",
+  "patientMedicalContext": "Known conditions, medications, and medical context relevant to treatment.",
+  "frequencyPatterns": "Analysis of symptom frequency, intensity patterns, onset timing, and progression."
 }
 Field guidelines:
 - issuesIdentified: Key psychological concerns or life challenges the user raised (max 4)
@@ -446,29 +484,41 @@ Field guidelines:
 - techniquesUsed: Therapeutic techniques applied during the session (e.g. "active listening", "cognitive reframing", "grounding", "validation") (max 5)
 - clinicalImpression: A paragraph providing clinical observations about the patient's presentation, affect, thought patterns, and functioning. Write as a clinician would in session notes. Include observations about congruence between reported symptoms and presentation.
 - preliminaryDiagnosis: Based on DSM-5/ICD-11 criteria, provide a preliminary diagnostic impression. Use qualifying language: "Presentation is consistent with..." or "Symptoms suggest possible...". If insufficient information, state "Further evaluation needed." Always note this is a preliminary impression, not a formal diagnosis.
-- recommendedActions: Specific, actionable steps the patient should take (max 5). Include both immediate actions and longer-term recommendations. Examples: "Practice 10 minutes of daily mindfulness meditation", "Schedule appointment with primary care physician", "Begin sleep hygiene protocol".
+- recommendedActions: Specific, actionable steps the patient should take (max 5). Include both immediate actions and longer-term recommendations.
 - wayForward: A narrative paragraph describing the recommended therapeutic path — what to focus on next, what progress looks like, and what the patient can expect.
-- Maximum 4 items per array field (except recommendedActions: max 5). Base this ONLY on what was actually discussed. Be specific and actionable.
+- rootCauseAnalysis: Identify the underlying root causes of the patient's presenting issues. Connect childhood/formative experiences, relationship patterns, core beliefs, and life events to current symptoms. This should read like a case formulation. If root causes were not explored, note "Root cause exploration was not conducted in this session — recommended for future sessions."
+- triggerPoints: Specific triggers identified during the session — situations, people, thoughts, or sensations that activate symptoms (max 5)
+- familyHistory: Any family mental health history, intergenerational patterns, or family dynamics that were discussed. If not discussed, state "Family history was not explored in this session."
+- patientMedicalContext: Known disorders, current medications, and relevant medical information disclosed. If none discussed, state "No medical context discussed."
+- frequencyPatterns: How often symptoms occur, when they started, whether they are worsening or improving, cyclical patterns. If not assessed, state "Frequency patterns were not assessed in this session."
+- Maximum 4 items per array field (except recommendedActions: max 5, triggerPoints: max 5). Base this ONLY on what was actually discussed. Be specific and actionable.
 
-CRITICAL: You MUST populate ALL of the following fields — do NOT leave any empty:
-- clinicalImpression: Always provide clinical observations even if the session was brief. If limited information, note what was observable about the patient's presentation and affect.
-- preliminaryDiagnosis: Always provide a diagnostic impression. If insufficient information, explicitly state "Insufficient information for preliminary impression — further evaluation recommended." Never leave blank.
-- recommendedActions: Always provide at least 2 actionable recommendations based on what was discussed.
-- wayForward: Always provide a therapeutic path narrative describing next steps and what progress looks like.
-- conversationAssessment: Always provide a clinical summary of the session.
-These clinical fields are the MOST IMPORTANT part of the summary. Prioritize them above all other fields.`,
+CRITICAL: You MUST populate ALL fields — do NOT leave any empty. The clinical fields (clinicalImpression, preliminaryDiagnosis, recommendedActions, wayForward, rootCauseAnalysis) are the MOST IMPORTANT. This report will be shared with the patient's treating doctor to aid clinical decision-making, so it must be thorough and clinically useful.`;
+}
+
+function requestSummaryAndCleanup(session: Session): void {
+  // If there's a conversation to summarize and the OpenAI connection is still open
+  if (session.openaiWs?.readyState === WebSocket.OPEN && session.transcriptBuffer.length >= 2 && !session.isSummaryRequested) {
+    session.isSummaryRequested = true;
+    log(session.id, session.userLabel, `Requesting session summary... (${session.transcriptBuffer.length} transcript entries)`);
+
+    session.openaiWs.send(JSON.stringify({
+      type: 'response.create',
+      response: {
+        modalities: ['text'],
+        instructions: buildSummaryPrompt(),
       },
     }));
 
     // Fallback: cleanup after 20 seconds even if summary fails
     setTimeout(() => {
       if (activeSessions.has(session.id)) {
-        console.log(`[Session ${session.id}] Summary timeout — cleaning up`);
+        logWarn(session.id, session.userLabel, 'Summary timeout (20s) — cleaning up');
         cleanupSession(session);
       }
     }, 20000);
   } else {
-    // No conversation to summarize, just clean up
+    log(session.id, session.userLabel, `No conversation to summarize (transcripts: ${session.transcriptBuffer.length}, openaiWs: ${session.openaiWs?.readyState}, summaryRequested: ${session.isSummaryRequested}) — cleaning up`);
     cleanupSession(session);
   }
 }
@@ -482,37 +532,82 @@ function handleSummaryResponse(session: Session, text: string): void {
       const validRiskLevels = ['low', 'moderate', 'elevated'];
       const riskLevel = validRiskLevels.includes(summary.riskLevel) ? summary.riskLevel : 'low';
 
+      const summaryData = {
+        keyTakeaways: summary.keyTakeaways || [],
+        copingStrategies: summary.copingStrategies || [],
+        homeworkAssignments: summary.homeworkAssignments || [],
+        topicsDiscussed: summary.topicsDiscussed || [],
+        emotionalThemes: summary.emotionalThemes || [],
+        issuesIdentified: summary.issuesIdentified || [],
+        conversationAssessment: summary.conversationAssessment || '',
+        emotionalJourney: summary.emotionalJourney || '',
+        riskLevel,
+        suggestedFocusAreas: summary.suggestedFocusAreas || [],
+        techniquesUsed: summary.techniquesUsed || [],
+        clinicalImpression: summary.clinicalImpression || '',
+        preliminaryDiagnosis: summary.preliminaryDiagnosis || '',
+        recommendedActions: summary.recommendedActions || [],
+        wayForward: summary.wayForward || '',
+        rootCauseAnalysis: summary.rootCauseAnalysis || '',
+        triggerPoints: summary.triggerPoints || [],
+        familyHistory: summary.familyHistory || '',
+        patientMedicalContext: summary.patientMedicalContext || '',
+        frequencyPatterns: summary.frequencyPatterns || '',
+      };
+
       sendToClient(session.clientWs, {
         type: 'session.summary',
-        summary: {
-          keyTakeaways: summary.keyTakeaways || [],
-          copingStrategies: summary.copingStrategies || [],
-          homeworkAssignments: summary.homeworkAssignments || [],
-          topicsDiscussed: summary.topicsDiscussed || [],
-          emotionalThemes: summary.emotionalThemes || [],
-          issuesIdentified: summary.issuesIdentified || [],
-          conversationAssessment: summary.conversationAssessment || '',
-          emotionalJourney: summary.emotionalJourney || '',
-          riskLevel,
-          suggestedFocusAreas: summary.suggestedFocusAreas || [],
-          techniquesUsed: summary.techniquesUsed || [],
-          clinicalImpression: summary.clinicalImpression || '',
-          preliminaryDiagnosis: summary.preliminaryDiagnosis || '',
-          recommendedActions: summary.recommendedActions || [],
-          wayForward: summary.wayForward || '',
-        },
+        summary: summaryData,
       });
-      console.log(`[Session ${session.id}] Summary generated successfully`);
+
+      // Save session to database if user is authenticated
+      if (session.userId) {
+        try {
+          sessionRepo.create({
+            session_id: session.id,
+            user_id: session.userId,
+            date: session.createdAt.toISOString(),
+            duration: Math.round((Date.now() - session.createdAt.getTime()) / 1000),
+            mode: session.mode,
+            key_takeaways: summaryData.keyTakeaways,
+            coping_strategies: summaryData.copingStrategies,
+            homework_assignments: summaryData.homeworkAssignments,
+            topics_discussed: summaryData.topicsDiscussed,
+            emotional_themes: summaryData.emotionalThemes,
+            issues_identified: summaryData.issuesIdentified,
+            conversation_assessment: summaryData.conversationAssessment,
+            emotional_journey: summaryData.emotionalJourney,
+            risk_level: riskLevel,
+            suggested_focus_areas: summaryData.suggestedFocusAreas,
+            techniques_used: summaryData.techniquesUsed,
+            clinical_impression: summaryData.clinicalImpression,
+            preliminary_diagnosis: summaryData.preliminaryDiagnosis,
+            recommended_actions: summaryData.recommendedActions,
+            way_forward: summaryData.wayForward,
+            root_cause_analysis: summaryData.rootCauseAnalysis,
+            trigger_points: summaryData.triggerPoints,
+            family_history: summaryData.familyHistory,
+            patient_medical_context: summaryData.patientMedicalContext,
+            frequency_patterns: summaryData.frequencyPatterns,
+            transcript: session.transcriptBuffer.map(t => ({ role: t.role, text: t.text })),
+          });
+          log(session.id, session.userLabel, 'Summary saved to database');
+        } catch (dbError) {
+          logError(session.id, session.userLabel, 'Failed to save summary to DB', dbError);
+        }
+      }
+
+      log(session.id, session.userLabel, `Summary generated | risk: ${riskLevel} | topics: ${(summary.topicsDiscussed || []).length} | issues: ${(summary.issuesIdentified || []).length}`);
     }
   } catch (error) {
-    console.error(`[Session ${session.id}] Failed to parse summary:`, error);
+    logError(session.id, session.userLabel, 'Failed to parse summary', error);
   }
 }
 
 // ---- Chat Mode Functions ----
 
 function startChatSession(session: Session): void {
-  console.log(`[Session ${session.id}] Starting chat session...`);
+  log(session.id, session.userLabel, 'Starting chat session...');
 
   sendToClient(session.clientWs, { type: 'session.status', status: 'connecting' });
 
@@ -521,7 +616,7 @@ function startChatSession(session: Session): void {
 
   // Session timeout
   session.timeoutHandle = setTimeout(() => {
-    console.log(`[Session ${session.id}] Chat session timeout`);
+    log(session.id, session.userLabel, 'Chat session timeout');
     sendToClient(session.clientWs, {
       type: 'session.timeout',
       message: 'Your session has reached the maximum duration. The session will now end.',
@@ -552,7 +647,7 @@ function startChatSession(session: Session): void {
     },
     (error) => {
       session.isResponseActive = false;
-      console.error(`[Session ${session.id}] Chat greeting error:`, error);
+      logError(session.id, session.userLabel, `Chat greeting error: ${error}`);
       sendToClient(session.clientWs, { type: 'error', message: `Failed to start chat session: ${error}` });
       sendToClient(session.clientWs, { type: 'session.status', status: 'error' });
     },
@@ -560,7 +655,7 @@ function startChatSession(session: Session): void {
 }
 
 function handleChatMessage(session: Session, userText: string): void {
-  console.log(`[Session ${session.id}] Chat message received`);
+  log(session.id, session.userLabel, `Chat message received (${userText.length} chars)`);
 
   // Add to chat history and transcript
   session.chatHistory.push({ role: 'user', content: userText });
@@ -590,7 +685,7 @@ function handleChatMessage(session: Session, userText: string): void {
     },
     (error) => {
       session.isResponseActive = false;
-      console.error(`[Session ${session.id}] Chat response error:`, error);
+      logError(session.id, session.userLabel, `Chat response error: ${error}`);
       sendToClient(session.clientWs, { type: 'error', message: `Failed to generate response: ${error}` });
     },
   );
@@ -603,32 +698,14 @@ function requestChatSummaryAndCleanup(session: Session): void {
   }
 
   session.isSummaryRequested = true;
-  console.log(`[Session ${session.id}] Requesting chat session summary...`);
+  log(session.id, session.userLabel, `Requesting chat session summary... (${session.transcriptBuffer.length} entries)`);
 
   const summaryMessages = [
     { role: 'system' as const, content: session.chatHistory[0].content },
     ...session.chatHistory.slice(1),
     {
       role: 'user' as const,
-      content: `[SYSTEM INSTRUCTION — NOT FROM PATIENT] Generate a comprehensive JSON clinical summary of this therapy session. Respond ONLY with valid JSON, no markdown, no explanation. Format:
-{
-  "keyTakeaways": ["insight 1", "insight 2"],
-  "copingStrategies": ["strategy 1"],
-  "homeworkAssignments": ["homework 1"],
-  "topicsDiscussed": ["topic 1"],
-  "emotionalThemes": ["theme 1"],
-  "issuesIdentified": ["issue 1"],
-  "conversationAssessment": "A 2-3 sentence clinical paragraph summarizing the session.",
-  "emotionalJourney": "A brief narrative of emotional shifts during the session.",
-  "riskLevel": "low",
-  "suggestedFocusAreas": ["area 1"],
-  "techniquesUsed": ["technique 1"],
-  "clinicalImpression": "A clinical observation paragraph.",
-  "preliminaryDiagnosis": "DSM-5 aligned diagnostic impression.",
-  "recommendedActions": ["action 1"],
-  "wayForward": "Therapeutic path narrative."
-}
-CRITICAL: Populate ALL clinical fields. These are the MOST IMPORTANT part of the summary.`,
+      content: `[SYSTEM INSTRUCTION — NOT FROM PATIENT] ${buildSummaryPrompt()}`,
     },
   ];
 
@@ -640,7 +717,7 @@ CRITICAL: Populate ALL clinical fields. These are the MOST IMPORTANT part of the
       cleanupSession(session);
     },
     (error) => {
-      console.error(`[Session ${session.id}] Chat summary error:`, error);
+      logError(session.id, session.userLabel, `Chat summary error: ${error}`);
       cleanupSession(session);
     },
   );
@@ -648,7 +725,7 @@ CRITICAL: Populate ALL clinical fields. These are the MOST IMPORTANT part of the
   // Fallback timeout
   setTimeout(() => {
     if (activeSessions.has(session.id)) {
-      console.log(`[Session ${session.id}] Chat summary timeout — cleaning up`);
+      logWarn(session.id, session.userLabel, 'Chat summary timeout (20s) — cleaning up');
       cleanupSession(session);
     }
   }, 20000);
@@ -661,7 +738,8 @@ function sendToClient(ws: WebSocket, data: Record<string, unknown>): void {
 }
 
 function cleanupSession(session: Session): void {
-  console.log(`[Session ${session.id}] Cleaning up session`);
+  const elapsed = Math.round((Date.now() - session.createdAt.getTime()) / 1000);
+  log(session.id, session.userLabel, `Cleaning up session | duration: ${elapsed}s | mode: ${session.mode} | remaining active: ${activeSessions.size - 1}`);
 
   if (session.timeoutHandle) {
     clearTimeout(session.timeoutHandle);

@@ -7974,3 +7974,1837 @@
   overflow-y: auto;
 }
 
+/* ===== Auth Screen ===== */
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-glow) 0%, transparent 60%),
+    var(--bg-primary);
+  padding: 1rem;
+  animation: fade-in 0.3s ease;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-back-btn {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast);
+}
+
+.auth-back-btn:hover {
+  color: var(--text-primary);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.auth-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem;
+  color: var(--accent-primary);
+}
+
+.auth-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+}
+
+.auth-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 0.75rem;
+  transition: border-color var(--transition-fast);
+}
+
+.auth-field:focus-within {
+  border-color: var(--accent-primary);
+}
+
+.auth-field svg,
+.auth-field .auth-field-prefix {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.auth-field-prefix {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.auth-field input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  padding: 0.65rem 0;
+  font-family: inherit;
+}
+
+.auth-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.auth-specializations {
+  margin-top: 0.25rem;
+}
+
+.auth-specializations label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.auth-spec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.auth-spec-chip {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.auth-spec-chip.selected {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.auth-error {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-submit {
+  width: 100%;
+  padding: 0.7rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+  font-family: inherit;
+  margin-top: 0.25rem;
+}
+
+.auth-submit:hover {
+  opacity: 0.9;
+}
+
+.auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-toggle {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 1rem 0 0;
+}
+
+.auth-toggle button {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.auth-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 0.75rem 0 0;
+}
+
+/* ===== Doctor Search Component ===== */
+.doctor-search {
+  position: relative;
+}
+.doctor-search-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  display: block;
+  font-weight: 500;
+}
+.doctor-linked-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.doctor-linked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.doctor-linked-chip button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast);
+}
+.doctor-linked-chip button:hover {
+  color: white;
+}
+.doctor-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  transition: border-color var(--transition-fast);
+}
+.doctor-search-input-wrap:focus-within {
+  border-color: var(--accent-primary);
+}
+.doctor-search-input-wrap svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.doctor-search-input-wrap input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+.doctor-search-input-wrap input::placeholder {
+  color: var(--text-muted);
+}
+.doctor-search-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.doctor-search-error {
+  color: #ef4444;
+  font-size: 0.7rem;
+  margin: 0.25rem 0 0;
+}
+.doctor-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.doctor-search-result {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.doctor-search-result:hover {
+  background: var(--bg-card-hover);
+}
+.doctor-search-result.linked {
+  opacity: 0.5;
+  cursor: default;
+}
+.doctor-result-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.doctor-result-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.doctor-result-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.doctor-result-username {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.doctor-result-specs {
+  font-size: 0.6rem;
+  color: var(--accent-primary);
+}
+.doctor-result-linked-badge {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.doctor-result-add {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+.doctor-search-empty {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ===== Therapist App Layout ===== */
+.therapist-app {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-primary);
+}
+
+/* Sidebar */
+.therapist-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+.therapist-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.25rem;
+  margin-bottom: 1.5rem;
+  color: var(--accent-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.therapist-sidebar-doctor {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.25rem;
+  margin: 0 0.5rem 1rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+}
+.therapist-sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.therapist-sidebar-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.therapist-sidebar-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.therapist-sidebar-role {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.therapist-sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0 0.5rem;
+}
+.therapist-sidebar-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+.therapist-sidebar-tab:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.therapist-sidebar-tab.active {
+  background: var(--accent-primary);
+  color: white;
+}
+.therapist-sidebar-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+.therapist-sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.therapist-sidebar-logout:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Main content area */
+.therapist-main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+.therapist-page {
+  padding: 2rem;
+  max-width: 960px;
+}
+.therapist-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+}
+.therapist-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.therapist-page-header .therapist-page-title {
+  margin-bottom: 0;
+}
+.therapist-loading {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+.therapist-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Stats Grid */
+.therapist-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+.therapist-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.25rem 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+.therapist-stat-card svg {
+  color: var(--accent-primary);
+}
+.therapist-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.therapist-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Sections */
+.therapist-section {
+  margin-bottom: 2rem;
+}
+.therapist-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Risk Alerts */
+.therapist-risk-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.therapist-risk-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+}
+.therapist-risk-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.therapist-risk-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Recent list */
+.therapist-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.therapist-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.therapist-recent-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.therapist-recent-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.therapist-recent-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.therapist-recent-meta {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Search bar */
+.therapist-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  max-width: 320px;
+}
+.therapist-search-bar svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.therapist-search-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+.therapist-search-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Filters row */
+.therapist-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.therapist-filter-select {
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Patient list */
+.therapist-patient-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.therapist-patient-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 24px;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+.therapist-patient-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 24px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid var(--border);
+}
+.therapist-patient-row:last-child {
+  border-bottom: none;
+}
+.therapist-patient-row:hover {
+  background: var(--bg-card-hover);
+}
+.therapist-patient-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.therapist-patient-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.therapist-patient-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: block;
+}
+.therapist-patient-concerns {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.therapist-patient-sessions {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.therapist-patient-mood {
+  font-size: 0.8rem;
+}
+.therapist-patient-chevron {
+  color: var(--text-muted);
+}
+
+/* Trend badges */
+.trend-up { color: #22c55e; display: flex; align-items: center; gap: 0.2rem; font-size: 0.8rem; }
+.trend-down { color: #ef4444; display: flex; align-items: center; gap: 0.2rem; font-size: 0.8rem; }
+
+/* Risk badges */
+.risk-badge {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.risk-badge.low { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.risk-badge.moderate { background: rgba(234, 179, 8, 0.1); color: #eab308; }
+.risk-badge.elevated { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.risk-badge.none { color: var(--text-muted); }
+.risk-badge.sm { font-size: 0.6rem; padding: 0.15rem 0.35rem; }
+
+/* Back button */
+.therapist-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.therapist-back-btn:hover {
+  text-decoration: underline;
+}
+
+/* Patient Detail Header */
+.therapist-patient-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.therapist-patient-avatar-lg {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.therapist-patient-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+/* Sub-tabs */
+.therapist-subtabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.therapist-subtab {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+.therapist-subtab:hover {
+  color: var(--text-primary);
+}
+.therapist-subtab.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+/* Detail content */
+.therapist-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.therapist-detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+.therapist-detail-card h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.therapist-detail-card p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.therapist-diagnosis {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+.therapist-detail-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Mood chart */
+.therapist-mood-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 100px;
+  padding-top: 0.5rem;
+}
+.therapist-mood-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  gap: 0.25rem;
+}
+.therapist-mood-bar {
+  width: 100%;
+  max-width: 24px;
+  background: var(--accent-primary);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  margin-top: auto;
+  min-height: 4px;
+}
+.therapist-mood-label {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Add button */
+.therapist-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+.therapist-add-btn:hover {
+  opacity: 0.9;
+}
+
+/* Notes list */
+.therapist-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.therapist-note-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+.therapist-note-card:hover {
+  border-color: var(--accent-primary);
+}
+.therapist-note-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.therapist-note-patient {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--accent-primary);
+}
+.therapist-note-type {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.therapist-note-type.general { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.therapist-note-type.session { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.therapist-note-type.intake { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+.therapist-note-type.discharge { background: rgba(234, 179, 8, 0.1); color: #eab308; }
+.therapist-note-date {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.therapist-note-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+}
+.therapist-note-content,
+.therapist-note-preview {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+.therapist-note-tags {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+.therapist-tag {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.therapist-note-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.therapist-note-actions button {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+.therapist-note-actions button:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Medications grid */
+.therapist-meds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.5rem;
+}
+.therapist-meds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.therapist-med-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+.therapist-med-card:hover {
+  border-color: var(--accent-primary);
+}
+.therapist-med-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+.therapist-med-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.therapist-med-status {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.therapist-med-status.active { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.therapist-med-status.discontinued { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.therapist-med-status.completed { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.therapist-med-patient {
+  font-size: 0.7rem;
+  color: var(--accent-primary);
+  margin-bottom: 0.3rem;
+}
+.therapist-med-details {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+.therapist-med-date {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+.therapist-med-notes {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+  font-style: italic;
+}
+
+/* Timeline */
+.therapist-timeline {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.therapist-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.therapist-timeline-entry {
+  position: relative;
+  margin-bottom: 1rem;
+}
+.therapist-timeline-dot {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.25rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 2px solid var(--bg-primary);
+}
+.therapist-timeline-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.75rem;
+}
+.therapist-timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+.therapist-timeline-date {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.therapist-timeline-duration {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.therapist-mode-tag {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.therapist-timeline-mood {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 0.15rem 0;
+}
+.therapist-timeline-assessment {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 0.15rem 0;
+  line-height: 1.4;
+}
+.therapist-timeline-issues {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin: 0.15rem 0;
+}
+
+/* Modal */
+.therapist-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fade-in 0.2s ease;
+}
+.therapist-modal {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 480px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.therapist-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.therapist-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.therapist-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* Form styles */
+.therapist-form-field {
+  margin-bottom: 0.75rem;
+}
+.therapist-form-field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+.therapist-form-field input,
+.therapist-form-field select,
+.therapist-form-field textarea {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+.therapist-form-field input:focus,
+.therapist-form-field select:focus,
+.therapist-form-field textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+.therapist-form-field textarea {
+  resize: vertical;
+}
+.therapist-form-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.therapist-form-row .therapist-form-field {
+  flex: 1;
+}
+.therapist-form-error {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin: 0 0 0.5rem;
+}
+.therapist-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.therapist-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+.therapist-btn-primary:hover { opacity: 0.9; }
+.therapist-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.therapist-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.therapist-btn-secondary:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Profile form */
+.therapist-profile-form {
+  max-width: 640px;
+}
+.therapist-input-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.therapist-spec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.therapist-spec-chip {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+.therapist-spec-chip.selected {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+.therapist-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.therapist-toggle-label input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent-primary);
+}
+.therapist-save-btn {
+  margin-top: 1.5rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .therapist-app {
+    flex-direction: column;
+  }
+  .therapist-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .therapist-sidebar-brand {
+    margin-bottom: 0;
+    padding: 0 0.5rem;
+  }
+  .therapist-sidebar-doctor {
+    display: none;
+  }
+  .therapist-sidebar-nav {
+    flex-direction: row;
+    gap: 0.1rem;
+    padding: 0;
+    flex: 1;
+    justify-content: center;
+  }
+  .therapist-sidebar-tab span {
+    display: none;
+  }
+  .therapist-sidebar-tab {
+    padding: 0.5rem;
+  }
+  .therapist-sidebar-footer {
+    border-top: none;
+    padding: 0 0.5rem;
+    margin-top: 0;
+  }
+  .therapist-sidebar-logout span {
+    display: none;
+  }
+  .therapist-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .therapist-patient-header {
+    display: none;
+  }
+  .therapist-patient-row {
+    grid-template-columns: 1fr auto auto;
+  }
+  .therapist-patient-sessions,
+  .therapist-patient-mood {
+    display: none;
+  }
+  .therapist-page {
+    padding: 1rem;
+  }
+  .therapist-form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* ===== Patient App Layout ===== */
+.patient-app {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-primary);
+}
+
+/* Patient Sidebar */
+.patient-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  transition: width 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+  overflow: hidden;
+}
+.patient-sidebar-collapsed {
+  width: 0;
+  padding: 0;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-240px);
+}
+.patient-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.25rem;
+  margin-bottom: 1.5rem;
+  color: var(--accent-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.patient-sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.25rem;
+  margin: 0 0.5rem 1rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+}
+.patient-sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.patient-sidebar-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.patient-sidebar-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.patient-sidebar-role {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.patient-sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0 0.5rem;
+}
+.patient-sidebar-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+.patient-sidebar-tab:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.patient-sidebar-tab.active {
+  background: var(--accent-primary);
+  color: white;
+}
+.patient-sidebar-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+.patient-sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.patient-sidebar-logout:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Patient sidebar expand button */
+.patient-sidebar-expand {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 100;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+.patient-sidebar-expand:hover {
+  background: var(--bg-card-hover);
+  color: var(--accent-primary);
+}
+
+/* Patient main content */
+.patient-main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+.patient-tab-content {
+  padding: 1.5rem 2rem;
+  max-width: 960px;
+}
+
+/* Appointments */
+.appointments-container {
+  max-width: 700px;
+}
+.appointments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.appointments-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.appointments-schedule-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  padding: 0.5rem 1rem;
+}
+.appointments-form {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.appointments-form h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+.appointments-field {
+  margin-bottom: 0.75rem;
+}
+.appointments-field label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+.appointments-select,
+.appointments-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+.appointments-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.appointments-row .appointments-field {
+  flex: 1;
+}
+.appointments-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.appointments-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+.appointments-section {
+  margin-bottom: 1.5rem;
+}
+.appointments-section h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+.appointments-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.85rem;
+}
+.appointments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.appointment-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.appointment-card-past {
+  opacity: 0.6;
+}
+.appointment-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.appointment-doctor {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.appointment-datetime {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.appointment-notes {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.appointment-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.appointment-cancel-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.appointment-cancel-btn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+.appointment-status {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  text-transform: capitalize;
+}
+.appointment-status-pending {
+  background: rgba(234, 179, 8, 0.12);
+  color: #eab308;
+}
+.appointment-status-confirmed {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+.appointment-status-cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.appointment-status-completed {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+/* Patient mobile responsive */
+@media (max-width: 768px) {
+  .patient-app {
+    flex-direction: column;
+  }
+  .patient-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .patient-sidebar-collapsed {
+    width: 100%;
+    transform: translateY(-100%);
+  }
+  .patient-sidebar-brand {
+    margin-bottom: 0;
+    padding: 0 0.5rem;
+  }
+  .patient-sidebar-user {
+    display: none;
+  }
+  .patient-sidebar-nav {
+    flex-direction: row;
+    gap: 0.1rem;
+    padding: 0;
+    flex: 1;
+    justify-content: center;
+    overflow-x: auto;
+  }
+  .patient-sidebar-tab span {
+    display: none;
+  }
+  .patient-sidebar-tab {
+    padding: 0.5rem;
+  }
+  .patient-sidebar-footer {
+    border-top: none;
+    padding: 0 0.5rem;
+    margin-top: 0;
+  }
+  .patient-sidebar-logout span {
+    display: none;
+  }
+  .patient-tab-content {
+    padding: 1rem;
+  }
+  .appointments-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+

@@ -7,9 +7,10 @@ import type { JournalEntry } from '../../types/journal';
 
 interface JournalPanelProps {
   onClose: () => void;
+  isInline?: boolean;
 }
 
-export function JournalPanel({ onClose }: JournalPanelProps) {
+export function JournalPanel({ onClose, isInline }: JournalPanelProps) {
   const profileId = StorageService.getActiveProfileId() ?? 'default';
   const [tab, setTab] = useState<'new' | 'past'>('new');
 
@@ -100,13 +101,12 @@ export function JournalPanel({ onClose }: JournalPanelProps) {
     if (expandedId === entryId) setExpandedId(null);
   }
 
-  return (
-    <div className="journal-overlay" onClick={onClose}>
-      <div className="journal-panel" onClick={e => e.stopPropagation()}>
-        <div className="journal-header">
-          <h2>My Journal</h2>
-          <button className="journal-close" onClick={onClose}><X size={20} /></button>
-        </div>
+  const panel = (
+    <div className={`journal-panel ${isInline ? 'journal-panel-inline' : ''}`} onClick={e => e.stopPropagation()}>
+      <div className="journal-header">
+        <h2>My Journal</h2>
+        {!isInline && <button className="journal-close" onClick={onClose}><X size={20} /></button>}
+      </div>
 
         <div className="journal-tabs">
           <button className={`journal-tab ${tab === 'new' ? 'active' : ''}`} onClick={() => setTab('new')}>
@@ -257,6 +257,13 @@ export function JournalPanel({ onClose }: JournalPanelProps) {
           )}
         </div>
       </div>
+  );
+
+  if (isInline) return panel;
+
+  return (
+    <div className="journal-overlay" onClick={onClose}>
+      {panel}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { X, Wind, Eye, Dumbbell, BookOpen, Heart, Scan, Palette, Sparkles, Heart
 interface ExercisesPanelProps {
   onClose: () => void;
   onSelectExercise: (exercise: string) => void;
+  isInline?: boolean;
 }
 
 interface ExerciseItem {
@@ -41,48 +42,56 @@ const EXERCISES: ExerciseItem[] = [
   { id: 'valuesSort', title: 'Values Card Sort', desc: 'Discover your core values through sorting', icon: LayoutGrid, category: 'discovery' },
 ];
 
-export function ExercisesPanel({ onClose, onSelectExercise }: ExercisesPanelProps) {
-  return (
-    <div className="exercises-panel-overlay" onClick={onClose}>
-      <div className="exercises-panel" onClick={e => e.stopPropagation()}>
-        <div className="exercises-panel-header">
-          <h2>Self-Guided Exercises</h2>
-          <p>Choose an exercise to practice on your own</p>
+export function ExercisesPanel({ onClose, onSelectExercise, isInline }: ExercisesPanelProps) {
+  const panel = (
+    <div className={`exercises-panel ${isInline ? 'exercises-panel-inline' : ''}`} onClick={e => e.stopPropagation()}>
+      <div className="exercises-panel-header">
+        <h2>Self-Guided Exercises</h2>
+        <p>Choose an exercise to practice on your own</p>
+        {!isInline && (
           <button className="exercise-close" onClick={onClose}>
             <X size={20} />
           </button>
-        </div>
-
-        <div className="exercises-panel-body">
-          {(['mindfulness', 'cognitive', 'discovery'] as const).map(cat => {
-            const items = EXERCISES.filter(e => e.category === cat);
-            if (items.length === 0) return null;
-            return (
-              <div key={cat} className="exercises-category">
-                <h3 className="exercises-category-title">{CATEGORY_LABELS[cat]}</h3>
-                <div className="exercises-grid">
-                  {items.map(ex => (
-                    <button
-                      key={ex.id}
-                      className="exercise-card"
-                      onClick={() => {
-                        onSelectExercise(ex.id);
-                        onClose();
-                      }}
-                    >
-                      <div className="exercise-card-icon">
-                        <ex.icon size={24} />
-                      </div>
-                      <strong>{ex.title}</strong>
-                      <span>{ex.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        )}
       </div>
+
+      <div className="exercises-panel-body">
+        {(['mindfulness', 'cognitive', 'discovery'] as const).map(cat => {
+          const items = EXERCISES.filter(e => e.category === cat);
+          if (items.length === 0) return null;
+          return (
+            <div key={cat} className="exercises-category">
+              <h3 className="exercises-category-title">{CATEGORY_LABELS[cat]}</h3>
+              <div className="exercises-grid">
+                {items.map(ex => (
+                  <button
+                    key={ex.id}
+                    className="exercise-card"
+                    onClick={() => {
+                      onSelectExercise(ex.id);
+                      if (!isInline) onClose();
+                    }}
+                  >
+                    <div className="exercise-card-icon">
+                      <ex.icon size={24} />
+                    </div>
+                    <strong>{ex.title}</strong>
+                    <span>{ex.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if (isInline) return panel;
+
+  return (
+    <div className="exercises-panel-overlay" onClick={onClose}>
+      {panel}
     </div>
   );
 }

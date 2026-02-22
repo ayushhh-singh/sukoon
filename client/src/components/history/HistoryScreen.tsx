@@ -1,78 +1,120 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   X, Clock, ArrowUp, ArrowDown, Minus, Brain, Bookmark, BookmarkCheck,
   Search, ChevronDown, ChevronUp, Layers, AlertTriangle, Shield,
 } from 'lucide-react';
-import { StorageService } from '../../services/storage';
+import { sessions as sessionsApi } from '../../services/api';
 import type { SessionSummary, BookmarkedStrategy } from '../../types/session';
+import type { TranscriptEntry } from '../../types';
 
 type Tab = 'sessions' | 'toolkit' | 'search';
+
+function normalizeSummary(raw: Record<string, unknown>): SessionSummary {
+  return {
+    id: raw.id as string,
+    sessionId: (raw.session_id || raw.sessionId || '') as string,
+    userId: (raw.user_id || raw.userId) as string,
+    date: (raw.date || raw.created_at || '') as string,
+    duration: (raw.duration || 0) as number,
+    mode: (raw.mode || 'voice') as 'voice' | 'chat',
+    keyTakeaways: (raw.key_takeaways || raw.keyTakeaways || []) as string[],
+    copingStrategies: (raw.coping_strategies || raw.copingStrategies || []) as string[],
+    homeworkAssignments: (raw.homework_assignments || raw.homeworkAssignments || []) as string[],
+    topicsDiscussed: (raw.topics_discussed || raw.topicsDiscussed || []) as string[],
+    emotionalThemes: (raw.emotional_themes || raw.emotionalThemes || []) as string[],
+    issuesIdentified: (raw.issues_identified || raw.issuesIdentified || []) as string[],
+    conversationAssessment: (raw.conversation_assessment || raw.conversationAssessment || '') as string,
+    emotionalJourney: (raw.emotional_journey || raw.emotionalJourney || '') as string,
+    riskLevel: (raw.risk_level || raw.riskLevel || 'low') as 'low' | 'moderate' | 'elevated',
+    suggestedFocusAreas: (raw.suggested_focus_areas || raw.suggestedFocusAreas || []) as string[],
+    techniquesUsed: (raw.techniques_used || raw.techniquesUsed || []) as string[],
+    clinicalImpression: (raw.clinical_impression || raw.clinicalImpression) as string | undefined,
+    preliminaryDiagnosis: (raw.preliminary_diagnosis || raw.preliminaryDiagnosis) as string | undefined,
+    recommendedActions: (raw.recommended_actions || raw.recommendedActions || []) as string[],
+    wayForward: (raw.way_forward || raw.wayForward) as string | undefined,
+    preMood: null,
+    postMood: null,
+    preAssessment: null,
+    transcriptEntries: (raw.transcript || raw.transcriptEntries || []) as TranscriptEntry[],
+  };
+}
 
 interface HistoryScreenProps {
   onClose: () => void;
   bookmarks: BookmarkedStrategy[];
   onToggleBookmark: (strategy: BookmarkedStrategy) => void;
+  isInline?: boolean;
 }
 
-export function HistoryScreen({ onClose, bookmarks, onToggleBookmark }: HistoryScreenProps) {
+export function HistoryScreen({ onClose, bookmarks, onToggleBookmark, isInline }: HistoryScreenProps) {
   const [tab, setTab] = useState<Tab>('sessions');
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const sessions = useMemo(
-    () => [...StorageService.getSessions()].reverse(),
-    []
+  useEffect(() => {
+    sessionsApi.list()
+      .then(raw => setSessions(raw.map(normalizeSummary).reverse()))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const panel = (
+    <div className={`history-panel ${isInline ? 'history-panel-inline' : ''}`} onClick={e => e.stopPropagation()}>
+      <div className="history-header">
+        <div className="history-header-top">
+          <h2>Your Journey</h2>
+          {!isInline && <button className="history-close" onClick={onClose}><X size={20} /></button>}
+        </div>
+        <div className="history-tabs">
+          {(['sessions', 'toolkit', 'search'] as Tab[]).map(t => (
+            <button
+              key={t}
+              className={`history-tab ${tab === t ? 'active' : ''}`}
+              onClick={() => setTab(t)}
+            >
+              {t === 'sessions' && <Clock size={14} />}
+              {t === 'toolkit' && <Layers size={14} />}
+              {t === 'search' && <Search size={14} />}
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'toolkit' && bookmarks.length > 0 && (
+                <span className="tab-badge">{bookmarks.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="history-body">
+        {tab === 'sessions' && (
+          <SessionsTab
+            sessions={sessions}
+            expandedSession={expandedSession}
+            onToggleExpand={id => setExpandedSession(prev => prev === id ? null : id)}
+            bookmarks={bookmarks}
+            onToggleBookmark={onToggleBookmark}
+          />
+        )}
+        {tab === 'toolkit' && (
+          <ToolkitTab bookmarks={bookmarks} onToggleBookmark={onToggleBookmark} />
+        )}
+        {tab === 'search' && (
+          <SearchTab
+            sessions={sessions}
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+          />
+        )}
+      </div>
+    </div>
   );
+
+  if (isInline) return panel;
 
   return (
     <div className="history-overlay" onClick={onClose}>
-      <div className="history-panel" onClick={e => e.stopPropagation()}>
-        <div className="history-header">
-          <div className="history-header-top">
-            <h2>Your Journey</h2>
-            <button className="history-close" onClick={onClose}><X size={20} /></button>
-          </div>
-          <div className="history-tabs">
-            {(['sessions', 'toolkit', 'search'] as Tab[]).map(t => (
-              <button
-                key={t}
-                className={`history-tab ${tab === t ? 'active' : ''}`}
-                onClick={() => setTab(t)}
-              >
-                {t === 'sessions' && <Clock size={14} />}
-                {t === 'toolkit' && <Layers size={14} />}
-                {t === 'search' && <Search size={14} />}
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-                {t === 'toolkit' && bookmarks.length > 0 && (
-                  <span className="tab-badge">{bookmarks.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="history-body">
-          {tab === 'sessions' && (
-            <SessionsTab
-              sessions={sessions}
-              expandedSession={expandedSession}
-              onToggleExpand={id => setExpandedSession(prev => prev === id ? null : id)}
-              bookmarks={bookmarks}
-              onToggleBookmark={onToggleBookmark}
-            />
-          )}
-          {tab === 'toolkit' && (
-            <ToolkitTab bookmarks={bookmarks} onToggleBookmark={onToggleBookmark} />
-          )}
-          {tab === 'search' && (
-            <SearchTab
-              sessions={sessions}
-              query={searchQuery}
-              onQueryChange={setSearchQuery}
-            />
-          )}
-        </div>
-      </div>
+      {panel}
     </div>
   );
 }

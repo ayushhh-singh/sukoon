@@ -7,11 +7,16 @@ server/node_modules/
 client/dist/
 server/dist/
 
+# Database
+server/data/
+
 # Environment variables — NEVER commit these
 .env
 server/.env
 client/.env
 *.env.local
+*.env.backup
+*.env.tunnel
 
 # Logs
 *.log
