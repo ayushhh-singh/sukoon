@@ -84,13 +84,15 @@ export interface DayLog {
   day: string;
   status: string;
   scheduled_time: string;
+  taken_at: string | null;
+  notes: string | null;
 }
 
 export function getRecentLogs(medicationId: string, days = 14): DayLog[] {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   return db.prepare(`
-    SELECT date(scheduled_time) as day, status, scheduled_time
+    SELECT date(scheduled_time) as day, status, scheduled_time, taken_at, notes
     FROM medication_logs
     WHERE medication_id = ? AND scheduled_time >= ?
     ORDER BY scheduled_time DESC

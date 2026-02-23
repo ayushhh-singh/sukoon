@@ -26,9 +26,8 @@ type Tab = 'sessions' | 'history' | 'progress' | 'journal' | 'exercises' | 'appo
 
 function isProfileIncomplete(user: Record<string, unknown> | null): boolean {
   if (!user) return false;
-  const concerns = (user.primaryConcerns as string[]) || [];
-  // Show onboarding if user has no age AND no primary concerns set
-  return !user.age && concerns.length === 0;
+  // Show onboarding if user has no age set
+  return !user.age;
 }
 
 export function PatientApp() {
@@ -36,6 +35,13 @@ export function PatientApp() {
   const session = useSession();
   const [activeTab, setActiveTab] = useState<Tab>('sessions');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pendingAutoLog, setPendingAutoLog] = useState<{ medId: string; timeStr: string } | null>(() => {
+    // On app open from notification URL: /?tab=doctor-input&logDose=xxx&at=HH:MM
+    const params = new URLSearchParams(window.location.search);
+    const medId = params.get('logDose');
+    const timeStr = params.get('at');
+    return medId && timeStr ? { medId, timeStr } : null;
+  });
   const [onboardingDone, setOnboardingDone] = useState(() => {
     const id = (user as Record<string, unknown> | null)?.id as string | undefined;
     if (!id) return false;
@@ -60,6 +66,27 @@ export function PatientApp() {
   // Register service worker for persistent medication reminders
   useEffect(() => {
     registerMedicationServiceWorker();
+  }, []);
+
+  // Navigate to doctor-input on mount if opened from notification URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('logDose')) setActiveTab('doctor-input');
+  }, []);
+
+  // Listen for SW postMessage when app is already open (notification "Took it" click)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'SW_NOTIFICATION_CLICK' && event.data.action === 'taken') {
+        setActiveTab('doctor-input');
+        if (event.data.medId && event.data.timeStr) {
+          setPendingAutoLog({ medId: event.data.medId, timeStr: event.data.timeStr });
+        }
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, []);
 
   function handleSessionActive() {
@@ -204,7 +231,12 @@ export function PatientApp() {
             onToggleExercise={session.toggleExercise}
           />
         )}
-        {activeTab === 'doctor-input' && <PatientDoctorInput />}
+        {activeTab === 'doctor-input' && (
+          <PatientDoctorInput
+            pendingAutoLog={pendingAutoLog}
+            onAutoLogComplete={() => setPendingAutoLog(null)}
+          />
+        )}
         {activeTab === 'appointments' && <PatientAppointments />}
         {activeTab === 'awareness' && (
           <PatientAwareness onStartSession={() => setActiveTab('sessions')} />

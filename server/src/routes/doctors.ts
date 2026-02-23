@@ -95,7 +95,10 @@ router.get('/me/patients', requireRole('doctor', 'admin'), (req: Request, res: R
 // NOTE: Must be before /:id to avoid matching "me" as an id
 router.get('/me/linked', requireRole('patient'), (req: Request, res: Response) => {
   const doctorIds = doctorRepo.getLinkedDoctorIds(req.user!.id);
-  const doctors = doctorIds.map(id => doctorRepo.findById(id)).filter(Boolean).map(d => sanitizeDoctor(d!));
+  const doctors = doctorIds.map(id => doctorRepo.findById(id)).filter(Boolean).map(d => {
+    const safe = sanitizeDoctor(d!);
+    return { ...safe, displayName: safe.display_name };
+  });
   res.json(doctors);
 });
 

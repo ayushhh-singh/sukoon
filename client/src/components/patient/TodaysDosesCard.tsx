@@ -63,7 +63,42 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
   const load = useCallback(async () => {
     try {
       const meds = await medsApi.list();
-      setSlots(buildSlots(meds as unknown as Medication[]));
+      const activeMeds = (meds as unknown as Medication[]).filter(m => m.status === 'active' && m.dose_times?.length);
+      const initialSlots = buildSlots(activeMeds);
+
+      // Load today's existing logs to mark already-logged slots
+      const today = new Date().toISOString().split('T')[0];
+      const logResults = await Promise.allSettled(
+        activeMeds.map(m => medsApi.getRecentLogs(m.id, 1).then(logs => ({ medId: m.id, logs })))
+      );
+      const todayLogMap = new Map<string, 'taken' | 'skipped'>();
+      logResults.forEach(r => {
+        if (r.status !== 'fulfilled') return;
+        const { medId, logs } = r.value as { medId: string; logs: { day: string; status: string; scheduled_time: string }[] };
+        const todayLogs = logs.filter(l => l.day === today);
+        // Map dose times to statuses based on closest scheduled_time
+        todayLogs.forEach(l => {
+          const logHour = new Date(l.scheduled_time).getHours();
+          const logMin = new Date(l.scheduled_time).getMinutes();
+          const logMins = logHour * 60 + logMin;
+          // Find the dose_time slot closest to this log's scheduled_time
+          const med = activeMeds.find(m => m.id === medId);
+          if (!med) return;
+          let closest = med.dose_times[0];
+          let closestDiff = Infinity;
+          for (const t of med.dose_times) {
+            const [h, m2] = t.split(':').map(Number);
+            const diff = Math.abs(h * 60 + m2 - logMins);
+            if (diff < closestDiff) { closestDiff = diff; closest = t; }
+          }
+          todayLogMap.set(`${medId}-${closest}`, l.status as 'taken' | 'skipped');
+        });
+      });
+
+      setSlots(initialSlots.map(s => {
+        const loggedStatus = todayLogMap.get(`${s.medId}-${s.timeStr}`);
+        return loggedStatus ? { ...s, logged: true, loggedStatus } : s;
+      }));
     } catch { /* ignore */ } finally {
       setLoading(false);
     }

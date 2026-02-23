@@ -16,9 +16,43 @@ router.get('/', (req: Request, res: Response) => {
     return;
   }
 
-  // Doctor
+  // Doctor — return camelCase fields so the frontend can use patientId, startDate, etc.
   const patientId = req.query.patientId as string | undefined;
-  res.json(medRepo.findByDoctorId(id, patientId));
+  const meds = medRepo.findByDoctorId(id, patientId);
+  res.json(meds.map(m => ({
+    ...m,
+    patientId: m.patient_id,
+    doctorId: m.doctor_id,
+    startDate: m.start_date,
+    endDate: m.end_date,
+    patientStartTime: m.patient_start_time,
+    doseTimes: m.dose_times,
+  })));
+});
+
+// GET /api/medications/active-context — patient only: active meds with 7-day adherence for AI session
+router.get('/active-context', requireRole('patient'), (req: Request, res: Response) => {
+  const patientId = req.user!.id;
+  const activeMeds = medRepo.findByPatientId(patientId).filter(m => m.status === 'active');
+  const tallies = medLogRepo.getTalliesByPatientId(patientId);
+  const tallyMap = new Map(tallies.map(t => [t.medication_id, t]));
+
+  const context = activeMeds.map(m => {
+    const tally = tallyMap.get(m.id);
+    const adherence = tally && tally.total > 0 ? Math.round((tally.taken / tally.total) * 100) : null;
+    return {
+      name: m.name,
+      dosage: m.dosage,
+      frequency: m.frequency,
+      startDate: m.start_date,
+      adherencePct: adherence,
+      weekTaken: tally?.taken ?? 0,
+      weekTotal: tally?.total ?? 0,
+      patientInfo: m.patient_info,
+    };
+  });
+
+  res.json(context);
 });
 
 // GET /api/medications/adherence/overview — doctor only: 7-day adherence per patient

@@ -42,6 +42,12 @@ addColumnIfNotExists('sessions', 'frequency_patterns', 'TEXT');
 // Medication tracking fields
 addColumnIfNotExists('medications', 'patient_start_time', 'TEXT');
 addColumnIfNotExists('medications', 'dose_times', "TEXT DEFAULT '[]'");
+addColumnIfNotExists('medications', 'patient_info', 'TEXT');
+addColumnIfNotExists('medications', 'end_date', 'TEXT');
+
+// Medication log detail fields
+addColumnIfNotExists('medication_logs', 'taken_at', 'TEXT');
+addColumnIfNotExists('medication_logs', 'notes', 'TEXT');
 
 console.log('[Sukoon] SQLite database initialized');
 

@@ -1,20 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, ArrowLeft, SkipForward, User, Heart, BookOpen, AudioLines, Briefcase, Globe, Stethoscope, ClipboardList, X } from 'lucide-react';
+import { ArrowRight, ArrowLeft, SkipForward, User, BookOpen, AudioLines, Briefcase, Globe, Stethoscope, ClipboardList, X } from 'lucide-react';
 import type { OnboardingData } from '../../types/session';
 import { DoctorSearch } from '../DoctorSearch';
-
-const CONCERN_OPTIONS = [
-  'Stress & Overwhelm',
-  'Anxiety & Worry',
-  'Low Mood & Depression',
-  'Relationship Difficulties',
-  'Sleep Problems',
-  'Self-Esteem',
-  'Grief & Loss',
-  'Work/Life Balance',
-  'Loneliness',
-  'Just Need to Talk',
-];
 
 const LANGUAGE_OPTIONS = [
   { code: 'English', label: 'English', native: 'English' },
@@ -26,7 +13,7 @@ const LANGUAGE_OPTIONS = [
   { code: 'Arabic', label: 'Arabic', native: 'العربية' },
 ];
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 interface OnboardingFlowProps {
   onComplete: (data: OnboardingData) => void;
@@ -43,17 +30,10 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
   const [disorderInput, setDisorderInput] = useState('');
   const [medications, setMedications] = useState<string[]>([]);
   const [medicationInput, setMedicationInput] = useState('');
-  const [concerns, setConcerns] = useState<string[]>([]);
   const [experience, setExperience] = useState<OnboardingData['therapyExperience'] | null>(null);
   const [language, setLanguage] = useState('English');
   const [voice, setVoice] = useState<'female' | 'male'>('female');
   const [linkedDoctors, setLinkedDoctors] = useState<{ id: string; username: string; displayName: string }[]>([]);
-
-  function toggleConcern(concern: string) {
-    setConcerns(prev =>
-      prev.includes(concern) ? prev.filter(c => c !== concern) : [...prev, concern]
-    );
-  }
 
   function addTag(value: string, list: string[], setList: (v: string[]) => void, setInput: (v: string) => void) {
     const trimmed = value.trim();
@@ -81,7 +61,7 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
       preferredName: name.trim() || 'there',
       age: age ? parseInt(age, 10) : undefined,
       profession: profession.trim() || undefined,
-      primaryConcerns: concerns,
+      primaryConcerns: [],
       therapyExperience: experience || 'none',
       language,
       voicePreference: voice,
@@ -95,11 +75,10 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
     if (step === 0) return true;           // name optional
     if (step === 1) return true;           // age & profession optional
     if (step === 2) return true;           // medical history optional
-    if (step === 3) return concerns.length > 0;
-    if (step === 4) return experience !== null;
-    if (step === 5) return true;           // language has default
-    if (step === 6) return true;           // voice has default
-    if (step === 7) return true;           // doctor username optional
+    if (step === 3) return experience !== null;
+    if (step === 4) return true;           // language has default
+    if (step === 5) return true;           // voice has default
+    if (step === 6) return true;           // doctor username optional
     return false;
   }
 
@@ -238,28 +217,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 4: Concerns */}
+        {/* Step 4: Experience */}
         {step === 3 && (
-          <div className="onboarding-step">
-            <div className="step-icon"><Heart size={28} /></div>
-            <h2>What brings you here today?</h2>
-            <p>Select all that apply. This helps us tailor your experience.</p>
-            <div className="concern-chips">
-              {CONCERN_OPTIONS.map(concern => (
-                <button
-                  key={concern}
-                  className={`concern-chip ${concerns.includes(concern) ? 'selected' : ''}`}
-                  onClick={() => toggleConcern(concern)}
-                >
-                  {concern}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 5: Experience */}
-        {step === 4 && (
           <div className="onboarding-step">
             <div className="step-icon"><BookOpen size={28} /></div>
             <h2>Have you spoken with a therapist before?</h2>
@@ -283,8 +242,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 6: Language Selection */}
-        {step === 5 && (
+        {/* Step 5: Language Selection */}
+        {step === 4 && (
           <div className="onboarding-step">
             <div className="step-icon"><Globe size={28} /></div>
             <h2>Choose your language</h2>
@@ -304,8 +263,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 7: Voice Selection */}
-        {step === 6 && (
+        {/* Step 6: Voice Selection */}
+        {step === 5 && (
           <div className="onboarding-step">
             <div className="step-icon"><AudioLines size={28} /></div>
             <h2>Choose Dr. Aria's voice</h2>
@@ -331,8 +290,8 @@ export function OnboardingFlow({ onComplete, onSkip, onBack }: OnboardingFlowPro
           </div>
         )}
 
-        {/* Step 8: Doctor Search */}
-        {step === 7 && (
+        {/* Step 7: Doctor Search */}
+        {step === 6 && (
           <div className="onboarding-step onboarding-step-doctor">
             <div className="step-icon"><Stethoscope size={28} /></div>
             <h2>Link to your doctor</h2>

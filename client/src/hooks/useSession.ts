@@ -4,7 +4,7 @@ import { useAudioCapture } from './useAudioCapture';
 import { useAudioPlayback } from './useAudioPlayback';
 import { useAuth } from '../contexts/AuthContext';
 import { StorageService } from '../services/storage';
-import { moods as moodsApi, assessments as assessmentsApi, sessions as sessionsApi } from '../services/api';
+import { moods as moodsApi, assessments as assessmentsApi, sessions as sessionsApi, medications as medsApi } from '../services/api';
 import { scoreAssessment } from '../utils/assessmentScoring';
 import { selectAssessmentForConcerns } from '../utils/assessmentMapping';
 import { PHQ9_CONFIG } from '../data/assessmentQuestions';
@@ -71,6 +71,15 @@ export function useSession() {
   const transcriptIdCounter = useRef(0);
   const sessionIdRef = useRef(`session-${Date.now()}`);
   const summaryDataRef = useRef<ServerMessage['summary']>(undefined);
+  const prescribedMedsRef = useRef<Record<string, unknown>[]>([]);
+
+  // Pre-fetch prescribed medications for AI context (patient only)
+  useEffect(() => {
+    if (!user) return;
+    medsApi.getActiveMedContext().then(meds => {
+      prescribedMedsRef.current = meds;
+    }).catch(() => { /* ignore */ });
+  }, [user]);
 
   const { status, connect, disconnect, send, onMessage } = useWebSocket();
   const { isCapturing, isMuted, volume: micVolume, startCapture, stopCapture, toggleMute } = useAudioCapture();
@@ -348,6 +357,7 @@ export function useSession() {
       assessmentContext: Object.keys(assessCtx).length > 0 ? assessCtx : undefined,
       userPreferences: Object.keys(userPrefs).length > 0 ? userPrefs : undefined,
       priorSessionContext: priorCtx,
+      prescribedMedications: prescribedMedsRef.current.length > 0 ? prescribedMedsRef.current : undefined,
     };
   }, [preAssessmentResult, user, sessionConcerns, sessionGoal, linkedPriorSession]);
 

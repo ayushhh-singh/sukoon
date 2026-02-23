@@ -2,6 +2,17 @@
 // Modular System Prompt Builder for Dr. Aria
 // ============================================================
 
+export interface PrescribedMedication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  startDate?: string;
+  adherencePct: number | null;
+  weekTaken: number;
+  weekTotal: number;
+  patientInfo?: string | null;
+}
+
 export interface SessionContext {
   assessmentContext?: {
     phq9Score?: number;
@@ -31,6 +42,7 @@ export interface SessionContext {
     clinicalImpression?: string;
     preliminaryDiagnosis?: string;
   };
+  prescribedMedications?: PrescribedMedication[];
 }
 
 // ---- Base Persona ----
@@ -330,6 +342,38 @@ function buildUserPreferences(prefs: SessionContext['userPreferences']): string 
   return prompt;
 }
 
+// ---- Prescribed Medications Builder ----
+function buildPrescribedMedicationsContext(meds: PrescribedMedication[]): string {
+  if (!meds || meds.length === 0) return '';
+
+  let prompt = '\n## Prescribed Medications\nThe patient has been prescribed the following medications by their doctor. Use this for clinical context only — do NOT recommend changes, question the prescription, or give medication advice. You may gently check in on how they are tolerating their medication if relevant, and explore adherence patterns therapeutically.\n\n';
+
+  for (const med of meds) {
+    prompt += `- **${med.name}** (${med.dosage}, ${med.frequency})`;
+    if (med.startDate) {
+      const since = new Date(med.startDate).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      prompt += ` — prescribed since ${since}`;
+    }
+    if (med.adherencePct !== null) {
+      if (med.adherencePct >= 80) {
+        prompt += `. Adherence this week: ${med.adherencePct}% (good — acknowledge positively if it comes up)`;
+      } else if (med.adherencePct >= 50) {
+        prompt += `. Adherence this week: ${med.adherencePct}% (moderate — explore barriers gently if relevant)`;
+      } else {
+        prompt += `. Adherence this week: ${med.adherencePct}% (low — worth exploring with compassion: what gets in the way?)`;
+      }
+    }
+    if (med.patientInfo) {
+      prompt += `\n  Patient guidance from doctor: "${med.patientInfo}"`;
+    }
+    prompt += '\n';
+  }
+
+  prompt += '\nIf the patient raises medication side effects, adherence struggles, or feelings about being on medication, explore empathetically. Never suggest stopping or adjusting medications. Remind them to speak to their prescribing doctor for any medication concerns.\n';
+
+  return prompt;
+}
+
 // ---- Chat Mode Addendum ----
 const CHAT_MODE_ADDENDUM = `
 
@@ -365,6 +409,10 @@ export function buildSystemPrompt(context?: SessionContext, mode: 'voice' | 'cha
 
   if (context?.assessmentContext) {
     sections.push(buildAssessmentAwareness(context.assessmentContext));
+  }
+
+  if (context?.prescribedMedications && context.prescribedMedications.length > 0) {
+    sections.push(buildPrescribedMedicationsContext(context.prescribedMedications));
   }
 
   sections.push(CRISIS_PROTOCOL, BOUNDARIES);

@@ -138,6 +138,7 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
           assessmentContext: message.assessmentContext,
           userPreferences: message.userPreferences,
           priorSessionContext: message.priorSessionContext,
+          prescribedMedications: message.prescribedMedications,
         };
         connectToOpenAI(session);
         break;
@@ -192,6 +193,7 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
           assessmentContext: message.assessmentContext,
           userPreferences: message.userPreferences,
           priorSessionContext: message.priorSessionContext,
+          prescribedMedications: message.prescribedMedications,
         };
         startChatSession(session);
         break;

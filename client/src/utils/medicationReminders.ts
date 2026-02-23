@@ -83,12 +83,21 @@ export function registerMedicationServiceWorker(): Promise<ServiceWorker | null>
     .catch(() => null);
 }
 
+function postToSW(message: Record<string, unknown>): void {
+  if (!('serviceWorker' in navigator)) return;
+  // Use navigator.serviceWorker.ready so we wait for the SW to be active
+  // (navigator.serviceWorker.controller is null on first install until clients.claim())
+  navigator.serviceWorker.ready
+    .then(reg => { reg.active?.postMessage(message); })
+    .catch(() => {});
+}
+
 export function postMedicationsToSW(medications: { id: string; name: string; dosage: string; frequency: string; doseTimes: string[] }[]) {
-  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
-  navigator.serviceWorker.controller.postMessage({
-    type: 'SCHEDULE_MED_REMINDERS',
-    medications,
-  });
+  postToSW({ type: 'SCHEDULE_MED_REMINDERS', medications });
+}
+
+export function cancelMedReminderInSW(medId: string, timeStr: string) {
+  postToSW({ type: 'CANCEL_MED_REMINDER', medId, timeStr });
 }
 
 export function getDefaultDoseTimes(frequency: string): string[] {

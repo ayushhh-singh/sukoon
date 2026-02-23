@@ -21,6 +21,7 @@ import assessmentRoutes from './routes/assessments';
 import moodRoutes from './routes/moods';
 import doctorNoteRoutes from './routes/doctorNotes';
 import medicationRoutes from './routes/medications';
+import * as medRepo from './db/repositories/medicationRepo';
 import * as medLogRepo from './db/repositories/medicationLogRepo';
 import * as notificationRepo from './db/repositories/notificationRepo';
 import bookmarkRoutes from './routes/bookmarks';
@@ -131,6 +132,52 @@ function sendWeeklySummaries() {
   }
 }
 
+// Medication expiry alerts — notify doctor 14 days before a patient's medication ends
+let expiryAlertFiredAt: string | null = null;
+
+function sendMedicationExpiryAlerts() {
+  try {
+    const endingSoon = medRepo.findEndingSoon(14);
+    for (const med of endingSoon) {
+      const daysLeft = Math.ceil((new Date(med.end_date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const alreadyAlerted = notificationRepo.hasRecentNotification(
+        med.doctor_id, 'medication_expiring', med.id, 23 // once per day
+      );
+      if (!alreadyAlerted) {
+        notificationRepo.create({
+          user_id: med.doctor_id,
+          user_role: 'doctor',
+          type: 'medication_expiring',
+          title: 'Medication ending soon',
+          message: `${med.name} (${med.dosage}) for a patient ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — consider renewal or adjustment`,
+          reference_id: med.id,
+          reference_type: 'medication',
+        });
+        // Also notify patient
+        const alreadyAlertedPatient = notificationRepo.hasRecentNotification(
+          med.patient_id, 'medication_expiring_patient', med.id, 23
+        );
+        if (!alreadyAlertedPatient) {
+          notificationRepo.create({
+            user_id: med.patient_id,
+            user_role: 'patient',
+            type: 'medication_expiring_patient',
+            title: 'Medication supply running low',
+            message: `Your ${med.name} (${med.dosage}) course ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — speak with your doctor about renewal`,
+            reference_id: med.id,
+            reference_type: 'medication',
+          });
+        }
+      }
+    }
+    if (endingSoon.length > 0) {
+      console.log(`[Sukoon] Expiry alerts checked: ${endingSoon.length} medications ending within 14 days`);
+    }
+  } catch (err) {
+    console.error('[Sukoon] Expiry alert error:', err);
+  }
+}
+
 // Check every hour whether it's time for Sunday evening summaries
 setInterval(() => {
   const now = new Date();
@@ -139,7 +186,15 @@ setInterval(() => {
     weeklySummaryFiredAt = dateKey;
     sendWeeklySummaries();
   }
+  // Run expiry check once per day at 9am
+  if (now.getHours() === 9 && expiryAlertFiredAt !== dateKey) {
+    expiryAlertFiredAt = dateKey;
+    sendMedicationExpiryAlerts();
+  }
 }, 60 * 60 * 1000);
+
+// Run expiry check once on server start too
+sendMedicationExpiryAlerts();
 
 server.listen(PORT, () => {
   console.log(`[Sukoon] Server running on port ${PORT}`);

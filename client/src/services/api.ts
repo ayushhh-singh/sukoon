@@ -125,6 +125,7 @@ export const medications = {
   getStreak: (medId: string) => request<{ streak: number }>(`/api/medications/${medId}/streak`),
   getRecentLogs: (medId: string, days?: number) => request<Record<string, unknown>[]>(`/api/medications/${medId}/recent-logs${days ? `?days=${days}` : ''}`),
   adherenceOverview: () => request<Record<string, unknown>[]>('/api/medications/adherence/overview'),
+  getActiveMedContext: () => request<Record<string, unknown>[]>('/api/medications/active-context'),
 };
 
 // Bookmarks
