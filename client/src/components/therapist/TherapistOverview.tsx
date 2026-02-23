@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, MessageSquare, TrendingUp, Activity, AlertTriangle } from 'lucide-react';
-import { doctors as doctorsApi, sessions as sessionsApi } from '../../services/api';
+import { Users, MessageSquare, TrendingUp, Activity, AlertTriangle, Pill } from 'lucide-react';
+import { doctors as doctorsApi, sessions as sessionsApi, medications as medsApi } from '../../services/api';
 
 interface PatientData {
   id: string;
@@ -21,17 +21,27 @@ interface SessionData {
   patientName?: string;
 }
 
+interface AdherenceRow {
+  patientId: string;
+  activeMedCount: number;
+  weekTaken: number;
+  weekTotal: number;
+  weekAdherence: number | null;
+}
+
 export function TherapistOverview() {
   const [patients, setPatients] = useState<PatientData[]>([]);
   const [allSessions, setAllSessions] = useState<SessionData[]>([]);
+  const [adherenceRows, setAdherenceRows] = useState<AdherenceRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [pats, sess] = await Promise.all([
+        const [pats, sess, adherence] = await Promise.all([
           doctorsApi.getMyPatients(),
           sessionsApi.list(),
+          medsApi.adherenceOverview().catch(() => []),
         ]);
         const patientList = pats.map(p => ({
           id: p.id as string,
@@ -53,6 +63,8 @@ export function TherapistOverview() {
           conversationAssessment: (s.conversationAssessment as string) || null,
           patientName: patientMap.get(s.userId as string) || 'Unknown',
         })));
+
+        setAdherenceRows((adherence as unknown as AdherenceRow[]).filter(r => r.activeMedCount > 0));
       } catch {
         // ignore
       } finally {
@@ -90,6 +102,21 @@ export function TherapistOverview() {
   const elevatedRiskSessions = allSessions.filter(s => s.riskLevel === 'elevated');
   const uniqueRiskPatients = [...new Set(elevatedRiskSessions.map(s => s.userId))];
 
+  // Sort adherence rows: low adherence first, then no-data, then good
+  const patientMap = new Map(patients.map(p => [p.id, p.displayName]));
+  const sortedAdherence = [...adherenceRows].sort((a, b) => {
+    const aVal = a.weekAdherence ?? 101;
+    const bVal = b.weekAdherence ?? 101;
+    return aVal - bVal;
+  });
+
+  function adherenceColor(pct: number | null): string {
+    if (pct === null) return 'adherence-none';
+    if (pct < 50) return 'adherence-red';
+    if (pct < 75) return 'adherence-yellow';
+    return 'adherence-green';
+  }
+
   return (
     <div className="therapist-page">
       <h1 className="therapist-page-title">Dashboard</h1>
@@ -117,6 +144,51 @@ export function TherapistOverview() {
           <span className="therapist-stat-label">Avg Mood Change</span>
         </div>
       </div>
+
+      {/* Medication Adherence Overview */}
+      {sortedAdherence.length > 0 && (
+        <div className="therapist-section">
+          <h2 className="therapist-section-title"><Pill size={16} /> Medication Adherence (7-day)</h2>
+          <div className="therapist-adherence-table">
+            <div className="therapist-adherence-header">
+              <span>Patient</span>
+              <span>Active Meds</span>
+              <span>Doses This Week</span>
+              <span>Adherence</span>
+            </div>
+            {sortedAdherence.map(row => {
+              const name = patientMap.get(row.patientId) || 'Unknown';
+              const colorClass = adherenceColor(row.weekAdherence);
+              return (
+                <div key={row.patientId} className={`therapist-adherence-row ${colorClass}`}>
+                  <div className="adherence-patient">
+                    <div className="adherence-avatar">{name.charAt(0).toUpperCase()}</div>
+                    <span>{name}</span>
+                  </div>
+                  <span className="adherence-med-count">
+                    <Pill size={12} /> {row.activeMedCount}
+                  </span>
+                  <span className="adherence-doses">
+                    {row.weekTotal > 0 ? `${row.weekTaken}/${row.weekTotal}` : '—'}
+                  </span>
+                  <div className="adherence-pct-cell">
+                    {row.weekAdherence !== null ? (
+                      <>
+                        <div className="adherence-mini-bar">
+                          <div className="adherence-mini-fill" style={{ width: `${row.weekAdherence}%` }} />
+                        </div>
+                        <span className="adherence-pct-label">{row.weekAdherence}%</span>
+                      </>
+                    ) : (
+                      <span className="adherence-no-data">No logs yet</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Risk Alerts */}
       {uniqueRiskPatients.length > 0 && (

@@ -144,6 +144,8 @@ CREATE TABLE IF NOT EXISTS medications (
   end_date TEXT,
   notes TEXT,
   status TEXT DEFAULT 'active' CHECK(status IN ('active','discontinued','completed')),
+  patient_start_time TEXT,
+  dose_times TEXT DEFAULT '[]',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -198,6 +200,32 @@ CREATE TABLE IF NOT EXISTS appointments (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Medication dose logs (patient adherence tracking)
+CREATE TABLE IF NOT EXISTS medication_logs (
+  id TEXT PRIMARY KEY,
+  medication_id TEXT NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scheduled_time TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('taken','skipped','missed')),
+  taken_at TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_role TEXT NOT NULL CHECK(user_role IN ('patient','doctor')),
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  reference_id TEXT,
+  reference_type TEXT,
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
@@ -216,3 +244,7 @@ CREATE INDEX IF NOT EXISTS idx_doctors_username ON doctors(username);
 CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_doctor ON appointments(doctor_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_datetime ON appointments(date_time);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, user_role);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, user_role, is_read);
+CREATE INDEX IF NOT EXISTS idx_medication_logs_med ON medication_logs(medication_id);
+CREATE INDEX IF NOT EXISTS idx_medication_logs_patient ON medication_logs(patient_id);

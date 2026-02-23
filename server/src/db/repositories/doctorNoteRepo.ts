@@ -22,6 +22,11 @@ function parse(row: NoteRow): DoctorNote {
   return { ...row, tags: JSON.parse(row.tags || '[]') };
 }
 
+export function findByPatientId(patientId: string): DoctorNote[] {
+  const rows = db.prepare('SELECT * FROM doctor_notes WHERE patient_id = ? ORDER BY created_at DESC').all(patientId) as NoteRow[];
+  return rows.map(parse);
+}
+
 export function findByDoctorId(doctorId: string, patientId?: string): DoctorNote[] {
   if (patientId) {
     const rows = db.prepare('SELECT * FROM doctor_notes WHERE doctor_id = ? AND patient_id = ? ORDER BY created_at DESC').all(doctorId, patientId) as NoteRow[];

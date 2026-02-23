@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { requireRole } from '../middleware/auth';
 import * as appointmentRepo from '../db/repositories/appointmentRepo';
 import * as doctorRepo from '../db/repositories/doctorRepo';
+import * as userRepo from '../db/repositories/userRepo';
+import * as notificationRepo from '../db/repositories/notificationRepo';
 
 const router = Router();
 
@@ -56,6 +58,23 @@ router.post('/', requireRole('patient'), (req: Request, res: Response) => {
       notes: notes || undefined,
     });
 
+    // Notify doctor about new appointment request
+    const patient = userRepo.findById(req.user!.id);
+    const patientName = patient?.display_name || 'A patient';
+    const dt = new Date(dateTime);
+    const dateStr = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    notificationRepo.create({
+      user_id: doctorId,
+      user_role: 'doctor',
+      type: 'appointment_new',
+      title: 'New appointment request',
+      message: `${patientName} requested an appointment on ${dateStr} at ${timeStr}`,
+      reference_id: appointment.id,
+      reference_type: 'appointment',
+    });
+
     res.status(201).json(appointment);
   } catch (error) {
     console.error('Create appointment error:', error);
@@ -90,6 +109,55 @@ router.put('/:id', (req: Request, res: Response) => {
     duration,
     notes,
   });
+
+  // Send notifications based on status changes
+  if (status && updated) {
+    const dt = new Date(updated.date_time);
+    const dateStr = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    if (status === 'confirmed' && role === 'doctor') {
+      const doctor = doctorRepo.findById(id);
+      const doctorName = doctor?.display_name || 'Your doctor';
+      notificationRepo.create({
+        user_id: appointment.patient_id,
+        user_role: 'patient',
+        type: 'appointment_accepted',
+        title: 'Appointment confirmed',
+        message: `Dr. ${doctorName} confirmed your appointment on ${dateStr} at ${timeStr}`,
+        reference_id: appointment.id,
+        reference_type: 'appointment',
+      });
+    } else if (status === 'cancelled') {
+      if (role === 'patient') {
+        // Patient cancelled — notify doctor
+        const patient = userRepo.findById(id);
+        const patientName = patient?.display_name || 'A patient';
+        notificationRepo.create({
+          user_id: appointment.doctor_id,
+          user_role: 'doctor',
+          type: 'appointment_cancelled',
+          title: 'Appointment cancelled',
+          message: `${patientName} cancelled the appointment on ${dateStr} at ${timeStr}`,
+          reference_id: appointment.id,
+          reference_type: 'appointment',
+        });
+      } else if (role === 'doctor') {
+        // Doctor cancelled — notify patient
+        const doctor = doctorRepo.findById(id);
+        const doctorName = doctor?.display_name || 'Your doctor';
+        notificationRepo.create({
+          user_id: appointment.patient_id,
+          user_role: 'patient',
+          type: 'appointment_cancelled',
+          title: 'Appointment cancelled',
+          message: `Dr. ${doctorName} cancelled the appointment on ${dateStr} at ${timeStr}`,
+          reference_id: appointment.id,
+          reference_type: 'appointment',
+        });
+      }
+    }
+  }
 
   res.json(updated);
 });

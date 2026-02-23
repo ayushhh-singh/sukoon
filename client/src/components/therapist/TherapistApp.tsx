@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, Users, FileText, Pill, UserCircle, LogOut, Stethoscope } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Pill, UserCircle, LogOut, Stethoscope, Calendar } from 'lucide-react';
 import { TherapistOverview } from './TherapistOverview';
 import { TherapistPatients } from './TherapistPatients';
 import { TherapistNotes } from './TherapistNotes';
 import { TherapistMedications } from './TherapistMedications';
+import { TherapistAppointments } from './TherapistAppointments';
 import { TherapistProfile } from './TherapistProfile';
+import { NotificationBell } from '../NotificationBell';
 import { ThemeToggle } from '../ThemeToggle';
 
-type Tab = 'dashboard' | 'patients' | 'notes' | 'medications' | 'profile';
+type Tab = 'dashboard' | 'patients' | 'appointments' | 'notes' | 'medications' | 'profile';
 
 export function TherapistApp() {
   const { doctor, logout } = useAuth();
@@ -17,6 +19,7 @@ export function TherapistApp() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'patients', label: 'Patients', icon: <Users size={18} /> },
+    { id: 'appointments', label: 'Appointments', icon: <Calendar size={18} /> },
     { id: 'notes', label: 'Notes', icon: <FileText size={18} /> },
     { id: 'medications', label: 'Medications', icon: <Pill size={18} /> },
     { id: 'profile', label: 'Profile', icon: <UserCircle size={18} /> },
@@ -52,6 +55,7 @@ export function TherapistApp() {
         </nav>
         <div className="therapist-sidebar-footer">
           <ThemeToggle />
+          <NotificationBell onNavigate={(tab) => setActiveTab(tab as Tab)} />
           <button className="therapist-sidebar-logout" onClick={logout}>
             <LogOut size={16} />
             <span>Sign Out</span>
@@ -61,6 +65,7 @@ export function TherapistApp() {
       <main className="therapist-main">
         {activeTab === 'dashboard' && <TherapistOverview />}
         {activeTab === 'patients' && <TherapistPatients />}
+        {activeTab === 'appointments' && <TherapistAppointments />}
         {activeTab === 'notes' && <TherapistNotes />}
         {activeTab === 'medications' && <TherapistMedications />}
         {activeTab === 'profile' && <TherapistProfile />}

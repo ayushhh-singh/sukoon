@@ -116,6 +116,15 @@ export const medications = {
   create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/medications', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/medications/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id: string) => request<{ success: boolean }>(`/api/medications/${id}`, { method: 'DELETE' }),
+  // Dose logs
+  getLogs: (medId: string) => request<Record<string, unknown>[]>(`/api/medications/${medId}/logs`),
+  getTally: (medId: string) => request<Record<string, unknown>>(`/api/medications/${medId}/tally`),
+  logDose: (medId: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/medications/${medId}/logs`, { method: 'POST', body: JSON.stringify(data) }),
+  getAllTallies: (patientId?: string) => request<Record<string, unknown>[]>(`/api/medications/tallies/all${patientId ? `?patientId=${patientId}` : ''}`),
+  // Streak & calendar
+  getStreak: (medId: string) => request<{ streak: number }>(`/api/medications/${medId}/streak`),
+  getRecentLogs: (medId: string, days?: number) => request<Record<string, unknown>[]>(`/api/medications/${medId}/recent-logs${days ? `?days=${days}` : ''}`),
+  adherenceOverview: () => request<Record<string, unknown>[]>('/api/medications/adherence/overview'),
 };
 
 // Bookmarks
@@ -148,4 +157,14 @@ export const appointments = {
   create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/appointments', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id: string) => request<{ success: boolean }>(`/api/appointments/${id}`, { method: 'DELETE' }),
+};
+
+// Notifications
+export const notifications = {
+  list: (unreadOnly?: boolean) => request<Record<string, unknown>[]>(`/api/notifications${unreadOnly ? '?unread=true' : ''}`),
+  unreadCount: () => request<{ count: number }>('/api/notifications/unread-count'),
+  markRead: (id: string) => request<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'PUT' }),
+  markAllRead: () => request<{ success: boolean }>('/api/notifications/read-all', { method: 'PUT' }),
+  remove: (id: string) => request<{ success: boolean }>(`/api/notifications/${id}`, { method: 'DELETE' }),
+  clearAll: () => request<{ success: boolean }>('/api/notifications', { method: 'DELETE' }),
 };

@@ -12,19 +12,37 @@ export interface Medication {
   end_date: string | null;
   notes: string | null;
   status: 'active' | 'discontinued' | 'completed';
+  patient_start_time: string | null;
+  dose_times: string[];
   created_at: string;
   updated_at: string;
 }
 
+interface MedRow extends Omit<Medication, 'dose_times'> {
+  dose_times: string;
+}
+
+function parseMed(row: MedRow): Medication {
+  return { ...row, dose_times: JSON.parse(row.dose_times || '[]') };
+}
+
+export function findByPatientId(patientId: string): Medication[] {
+  const rows = db.prepare('SELECT * FROM medications WHERE patient_id = ? ORDER BY created_at DESC').all(patientId) as MedRow[];
+  return rows.map(parseMed);
+}
+
 export function findByDoctorId(doctorId: string, patientId?: string): Medication[] {
   if (patientId) {
-    return db.prepare('SELECT * FROM medications WHERE doctor_id = ? AND patient_id = ? ORDER BY created_at DESC').all(doctorId, patientId) as Medication[];
+    const rows = db.prepare('SELECT * FROM medications WHERE doctor_id = ? AND patient_id = ? ORDER BY created_at DESC').all(doctorId, patientId) as MedRow[];
+    return rows.map(parseMed);
   }
-  return db.prepare('SELECT * FROM medications WHERE doctor_id = ? ORDER BY created_at DESC').all(doctorId) as Medication[];
+  const rows = db.prepare('SELECT * FROM medications WHERE doctor_id = ? ORDER BY created_at DESC').all(doctorId) as MedRow[];
+  return rows.map(parseMed);
 }
 
 export function findById(id: string): Medication | undefined {
-  return db.prepare('SELECT * FROM medications WHERE id = ?').get(id) as Medication | undefined;
+  const row = db.prepare('SELECT * FROM medications WHERE id = ?').get(id) as MedRow | undefined;
+  return row ? parseMed(row) : undefined;
 }
 
 export interface CreateMedicationInput {
@@ -47,7 +65,7 @@ export function create(data: CreateMedicationInput): Medication {
   return findById(id)!;
 }
 
-export function update(id: string, data: Partial<Pick<Medication, 'name' | 'dosage' | 'frequency' | 'end_date' | 'notes' | 'status'>>): Medication | undefined {
+export function update(id: string, data: Partial<Pick<Medication, 'name' | 'dosage' | 'frequency' | 'end_date' | 'notes' | 'status' | 'patient_start_time' | 'dose_times'>>): Medication | undefined {
   const fields: string[] = [];
   const values: unknown[] = [];
 
@@ -57,6 +75,8 @@ export function update(id: string, data: Partial<Pick<Medication, 'name' | 'dosa
   if (data.end_date !== undefined) { fields.push('end_date = ?'); values.push(data.end_date); }
   if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes); }
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status); }
+  if (data.patient_start_time !== undefined) { fields.push('patient_start_time = ?'); values.push(data.patient_start_time); }
+  if (data.dose_times !== undefined) { fields.push('dose_times = ?'); values.push(JSON.stringify(data.dose_times)); }
 
   if (fields.length === 0) return findById(id);
 

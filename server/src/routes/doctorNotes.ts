@@ -1,26 +1,39 @@
 import { Router, type Request, type Response } from 'express';
 import { requireRole } from '../middleware/auth';
 import * as noteRepo from '../db/repositories/doctorNoteRepo';
+import * as doctorRepo from '../db/repositories/doctorRepo';
+import * as notificationRepo from '../db/repositories/notificationRepo';
 
 const router = Router();
-router.use(requireRole('doctor'));
 
-// GET /api/notes?patientId=
+// GET /api/notes?patientId= — doctors see their notes, patients see notes about them
 router.get('/', (req: Request, res: Response) => {
+  const { id, role } = req.user!;
+
+  if (role === 'patient') {
+    res.json(noteRepo.findByPatientId(id));
+    return;
+  }
+
+  // Doctor
   const patientId = req.query.patientId as string | undefined;
-  res.json(noteRepo.findByDoctorId(req.user!.id, patientId));
+  res.json(noteRepo.findByDoctorId(id, patientId));
 });
 
 // GET /api/notes/:id
 router.get('/:id', (req: Request, res: Response) => {
   const note = noteRepo.findById(req.params.id as string);
   if (!note) { res.status(404).json({ error: 'Note not found' }); return; }
-  if (note.doctor_id !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+
+  const { id, role } = req.user!;
+  if (role === 'doctor' && note.doctor_id !== id) { res.status(403).json({ error: 'Access denied' }); return; }
+  if (role === 'patient' && note.patient_id !== id) { res.status(403).json({ error: 'Access denied' }); return; }
+
   res.json(note);
 });
 
-// POST /api/notes
-router.post('/', (req: Request, res: Response) => {
+// POST /api/notes — doctor only
+router.post('/', requireRole('doctor'), (req: Request, res: Response) => {
   try {
     const { patientId, sessionId, noteType, title, content, tags } = req.body;
     if (!patientId || !content) { res.status(400).json({ error: 'patientId and content are required' }); return; }
@@ -33,6 +46,20 @@ router.post('/', (req: Request, res: Response) => {
       content,
       tags,
     });
+
+    // Notify patient
+    const doctor = doctorRepo.findById(req.user!.id);
+    const doctorName = doctor?.display_name || 'Your doctor';
+    notificationRepo.create({
+      user_id: patientId,
+      user_role: 'patient',
+      type: 'note_added',
+      title: 'New note from your therapist',
+      message: `Dr. ${doctorName} added a note: ${title || 'Untitled'}`,
+      reference_id: note.id,
+      reference_type: 'note',
+    });
+
     res.status(201).json(note);
   } catch (error) {
     console.error('Create note error:', error);
@@ -40,8 +67,8 @@ router.post('/', (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/notes/:id
-router.put('/:id', (req: Request, res: Response) => {
+// PUT /api/notes/:id — doctor only
+router.put('/:id', requireRole('doctor'), (req: Request, res: Response) => {
   const note = noteRepo.findById(req.params.id as string);
   if (!note) { res.status(404).json({ error: 'Note not found' }); return; }
   if (note.doctor_id !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
@@ -50,8 +77,8 @@ router.put('/:id', (req: Request, res: Response) => {
   res.json(updated);
 });
 
-// DELETE /api/notes/:id
-router.delete('/:id', (req: Request, res: Response) => {
+// DELETE /api/notes/:id — doctor only
+router.delete('/:id', requireRole('doctor'), (req: Request, res: Response) => {
   const note = noteRepo.findById(req.params.id as string);
   if (!note) { res.status(404).json({ error: 'Note not found' }); return; }
   if (note.doctor_id !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
