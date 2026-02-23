@@ -7,6 +7,9 @@
     "dev:client": "cd client && npm run dev",
     "dev:server": "cd server && npm run dev",
     "build:client": "cd client && npm run build",
-    "build:server": "cd server && npm run build"
+    "build:server": "cd server && npm run build",
+    "dev:mobile": "cd mobile && npx expo start",
+    "dev:mobile:ios": "cd mobile && npx expo start --ios",
+    "dev:mobile:android": "cd mobile && npx expo start --android"
   }
 }
