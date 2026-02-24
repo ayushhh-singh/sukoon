@@ -75,11 +75,21 @@ export function getRefillCountdown(endDate: string | null): {
   return { days, urgency: 'ok', label: `${days}d supply left` };
 }
 
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
 export function registerMedicationServiceWorker(): Promise<ServiceWorker | null> {
   if (!('serviceWorker' in navigator)) return Promise.resolve(null);
   return navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
-    .then(reg => reg.active || reg.installing || reg.waiting)
+    .then(reg => {
+      // Start a heartbeat that keeps the SW alive and triggers schedule recovery
+      if (!heartbeatInterval) {
+        heartbeatInterval = setInterval(() => {
+          postToSW({ type: 'HEARTBEAT' });
+        }, 5 * 60 * 1000); // every 5 minutes
+      }
+      return reg.active || reg.installing || reg.waiting;
+    })
     .catch(() => null);
 }
 
@@ -98,6 +108,10 @@ export function postMedicationsToSW(medications: { id: string; name: string; dos
 
 export function cancelMedReminderInSW(medId: string, timeStr: string) {
   postToSW({ type: 'CANCEL_MED_REMINDER', medId, timeStr });
+}
+
+export function closeAllMedNotificationsInSW(medId: string) {
+  postToSW({ type: 'CLOSE_MED_NOTIFICATIONS', medId });
 }
 
 export function getDefaultDoseTimes(frequency: string): string[] {

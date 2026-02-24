@@ -21,7 +21,7 @@ router.get('/search', (req: Request, res: Response) => {
 router.post('/', (req: Request, res: Response) => {
   try {
     const data = req.body;
-    data.user_id = req.user!.id;
+    data.userId = req.user!.id;
     const entry = journalRepo.create(data);
     res.status(201).json(entry);
   } catch (error) {
@@ -34,7 +34,7 @@ router.post('/', (req: Request, res: Response) => {
 router.put('/:id', (req: Request, res: Response) => {
   const entry = journalRepo.findById(req.params.id as string);
   if (!entry) { res.status(404).json({ error: 'Entry not found' }); return; }
-  if (entry.user_id !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+  if (entry.userId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
 
   const updated = journalRepo.update(req.params.id as string, req.body);
   res.json(updated);
@@ -44,7 +44,7 @@ router.put('/:id', (req: Request, res: Response) => {
 router.delete('/:id', (req: Request, res: Response) => {
   const entry = journalRepo.findById(req.params.id as string);
   if (!entry) { res.status(404).json({ error: 'Entry not found' }); return; }
-  if (entry.user_id !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+  if (entry.userId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
 
   journalRepo.remove(req.params.id as string);
   res.json({ success: true });

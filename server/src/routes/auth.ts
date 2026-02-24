@@ -8,12 +8,12 @@ const router = Router();
 
 // Strip sensitive fields from user
 function sanitizeUser(user: userRepo.User) {
-  const { password_hash, ...safe } = user;
+  const { passwordHash, ...safe } = user;
   return safe;
 }
 
 function sanitizeDoctor(doctor: doctorRepo.Doctor) {
-  const { password_hash, ...safe } = doctor;
+  const { passwordHash, ...safe } = doctor;
   return safe;
 }
 
@@ -39,14 +39,14 @@ router.post('/register/patient', (req: Request, res: Response) => {
 
     const user = userRepo.create({
       email,
-      password_hash: hashPassword(password),
-      display_name: displayName,
+      passwordHash: hashPassword(password),
+      displayName,
       age,
       profession,
-      primary_concerns: primaryConcerns,
-      therapy_experience: therapyExperience,
+      primaryConcerns,
+      therapyExperience,
       language,
-      voice_preference: voicePreference,
+      voicePreference,
     });
 
     const token = generateToken({ id: user.id, role: 'patient', email: user.email });
@@ -87,17 +87,17 @@ router.post('/register/doctor', (req: Request, res: Response) => {
 
     const doctor = doctorRepo.create({
       email,
-      password_hash: hashPassword(password),
+      passwordHash: hashPassword(password),
       username: username.toLowerCase(),
-      display_name: displayName,
+      displayName,
       age,
       gender,
-      experience_years: experienceYears,
+      experienceYears,
       specializations,
       qualifications,
       bio,
-      clinic_name: clinicName,
-      clinic_address: clinicAddress,
+      clinicName,
+      clinicAddress,
       phone,
     });
 
@@ -122,7 +122,7 @@ router.post('/login', (req: Request, res: Response) => {
     // Check patients first, then doctors
     const user = userRepo.findByEmail(email);
     if (user) {
-      if (!verifyPassword(password, user.password_hash)) {
+      if (!verifyPassword(password, user.passwordHash)) {
         res.status(401).json({ error: 'Invalid email or password' });
         return;
       }
@@ -133,7 +133,7 @@ router.post('/login', (req: Request, res: Response) => {
 
     const doctor = doctorRepo.findByEmail(email);
     if (doctor) {
-      if (!verifyPassword(password, doctor.password_hash)) {
+      if (!verifyPassword(password, doctor.passwordHash)) {
         res.status(401).json({ error: 'Invalid email or password' });
         return;
       }

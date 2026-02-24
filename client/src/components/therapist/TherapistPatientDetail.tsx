@@ -1,8 +1,13 @@
 import { useState, useEffect, type ReactNode } from 'react';
-import { ArrowLeft, AlertTriangle, FileText, Pill, MessageSquare, User, ClipboardList, ChevronDown, ChevronUp, Brain, Target, TrendingUp, Compass } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, FileText, Pill, MessageSquare, User, ClipboardList, ChevronDown, ChevronUp, Brain, Target, TrendingUp, Compass, Shield, Activity, Lightbulb, Clock } from 'lucide-react';
 import { sessions as sessionsApi, notes as notesApi, medications as medsApi } from '../../services/api';
 import { NoteEditor } from './NoteEditor';
 import { MedicationEditor } from './MedicationEditor';
+import { TreatmentPlanView } from './TreatmentPlanView';
+import { AssessmentChart } from './AssessmentChart';
+import { SafetyPlanView } from './SafetyPlanView';
+import { ClinicalTimeline } from './ClinicalTimeline';
+import { ClinicalFormulationView } from './ClinicalFormulationView';
 
 interface PatientInfo {
   id: string;
@@ -22,7 +27,7 @@ interface Props {
   onBack: () => void;
 }
 
-type SubTab = 'overview' | 'notes' | 'medications' | 'sessions';
+type SubTab = 'overview' | 'notes' | 'medications' | 'sessions' | 'treatment' | 'assessments' | 'safety' | 'timeline' | 'formulation';
 
 export function TherapistPatientDetail({ patientId, patientName, patientInfo, onBack }: Props) {
   const [subTab, setSubTab] = useState<SubTab>('overview');
@@ -63,6 +68,11 @@ export function TherapistPatientDetail({ patientId, patientName, patientInfo, on
     { id: 'notes', label: 'Notes', icon: <FileText size={14} /> },
     { id: 'medications', label: 'Medications', icon: <Pill size={14} /> },
     { id: 'sessions', label: 'Sessions', icon: <MessageSquare size={14} /> },
+    { id: 'treatment', label: 'Treatment', icon: <Target size={14} /> },
+    { id: 'assessments', label: 'Assessments', icon: <Activity size={14} /> },
+    { id: 'safety', label: 'Safety Plan', icon: <Shield size={14} /> },
+    { id: 'timeline', label: 'Timeline', icon: <Clock size={14} /> },
+    { id: 'formulation', label: 'Formulation', icon: <Lightbulb size={14} /> },
   ];
 
   if (loading) {
@@ -485,6 +495,41 @@ export function TherapistPatientDetail({ patientId, patientName, patientInfo, on
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Treatment Plans */}
+      {subTab === 'treatment' && (
+        <div className="therapist-detail-content">
+          <TreatmentPlanView patientId={patientId} />
+        </div>
+      )}
+
+      {/* Assessments */}
+      {subTab === 'assessments' && (
+        <div className="therapist-detail-content">
+          <AssessmentChart patientId={patientId} />
+        </div>
+      )}
+
+      {/* Safety Plan */}
+      {subTab === 'safety' && (
+        <div className="therapist-detail-content">
+          <SafetyPlanView patientId={patientId} />
+        </div>
+      )}
+
+      {/* Clinical Timeline */}
+      {subTab === 'timeline' && (
+        <div className="therapist-detail-content">
+          <ClinicalTimeline patientId={patientId} />
+        </div>
+      )}
+
+      {/* Clinical Formulation */}
+      {subTab === 'formulation' && (
+        <div className="therapist-detail-content">
+          <ClinicalFormulationView patientId={patientId} />
         </div>
       )}
     </div>

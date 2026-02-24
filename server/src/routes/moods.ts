@@ -15,8 +15,8 @@ router.post('/', (req: Request, res: Response) => {
   try {
     const body = req.body;
     const mood = moodRepo.create({
-      user_id: req.user!.id,
-      session_id: body.sessionId || body.session_id,
+      userId: req.user!.id,
+      sessionId: body.sessionId,
       value: body.value,
       label: body.label,
       emoji: body.emoji,

@@ -14,7 +14,7 @@ router.get('/', (req: Request, res: Response) => {
 router.post('/', (req: Request, res: Response) => {
   try {
     const data = req.body;
-    data.user_id = req.user!.id;
+    data.userId = req.user!.id;
     const bookmark = bookmarkRepo.create(data);
     res.status(201).json(bookmark);
   } catch (error) {

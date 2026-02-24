@@ -2,115 +2,124 @@
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  display_name TEXT NOT NULL,
+  passwordHash TEXT NOT NULL,
+  displayName TEXT NOT NULL,
   age INTEGER,
   profession TEXT,
-  primary_concerns TEXT DEFAULT '[]',
-  therapy_experience TEXT DEFAULT 'none' CHECK(therapy_experience IN ('none','some','regular')),
+  primaryConcerns TEXT DEFAULT '[]',
+  therapyExperience TEXT DEFAULT 'none' CHECK(therapyExperience IN ('none','some','regular')),
   language TEXT DEFAULT 'English',
-  voice_preference TEXT DEFAULT 'female',
-  ambient_sound TEXT DEFAULT 'none',
-  consent_given INTEGER DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  voicePreference TEXT DEFAULT 'female',
+  ambientSound TEXT DEFAULT 'none',
+  consentGiven INTEGER DEFAULT 0,
+  knownDisorders TEXT DEFAULT '[]',
+  currentMedications TEXT DEFAULT '[]',
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Doctors (therapists)
 CREATE TABLE IF NOT EXISTS doctors (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
+  passwordHash TEXT NOT NULL,
   username TEXT UNIQUE NOT NULL,
-  display_name TEXT NOT NULL,
+  displayName TEXT NOT NULL,
   age INTEGER,
   gender TEXT,
-  experience_years INTEGER,
+  experienceYears INTEGER,
   specializations TEXT DEFAULT '[]',
   qualifications TEXT,
   bio TEXT,
-  clinic_name TEXT,
-  clinic_address TEXT,
+  clinicName TEXT,
+  clinicAddress TEXT,
   phone TEXT,
-  accepting_patients INTEGER DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  acceptingPatients INTEGER DEFAULT 1,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Doctor-Patient links (many-to-many)
 CREATE TABLE IF NOT EXISTS doctor_patient_links (
   id TEXT PRIMARY KEY,
-  doctor_id TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-  patient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'active' CHECK(status IN ('active','inactive')),
-  linked_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(doctor_id, patient_id)
+  linkedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(doctorId, patientId)
 );
 
 -- Sessions (AI therapy sessions)
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
-  session_id TEXT UNIQUE NOT NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sessionId TEXT UNIQUE NOT NULL,
+  userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   duration INTEGER NOT NULL DEFAULT 0,
   mode TEXT CHECK(mode IN ('voice','chat')),
 
   -- AI-generated summary fields
-  key_takeaways TEXT DEFAULT '[]',
-  coping_strategies TEXT DEFAULT '[]',
-  homework_assignments TEXT DEFAULT '[]',
-  topics_discussed TEXT DEFAULT '[]',
-  emotional_themes TEXT DEFAULT '[]',
-  issues_identified TEXT DEFAULT '[]',
-  conversation_assessment TEXT DEFAULT '',
-  emotional_journey TEXT DEFAULT '',
-  risk_level TEXT DEFAULT 'low' CHECK(risk_level IN ('low','moderate','elevated')),
-  suggested_focus_areas TEXT DEFAULT '[]',
-  techniques_used TEXT DEFAULT '[]',
-  clinical_impression TEXT,
-  preliminary_diagnosis TEXT,
-  recommended_actions TEXT DEFAULT '[]',
-  way_forward TEXT,
+  keyTakeaways TEXT DEFAULT '[]',
+  copingStrategies TEXT DEFAULT '[]',
+  homeworkAssignments TEXT DEFAULT '[]',
+  topicsDiscussed TEXT DEFAULT '[]',
+  emotionalThemes TEXT DEFAULT '[]',
+  issuesIdentified TEXT DEFAULT '[]',
+  conversationAssessment TEXT DEFAULT '',
+  emotionalJourney TEXT DEFAULT '',
+  riskLevel TEXT DEFAULT 'low' CHECK(riskLevel IN ('low','moderate','elevated')),
+  suggestedFocusAreas TEXT DEFAULT '[]',
+  techniquesUsed TEXT DEFAULT '[]',
+  clinicalImpression TEXT,
+  preliminaryDiagnosis TEXT,
+  recommendedActions TEXT DEFAULT '[]',
+  wayForward TEXT,
+
+  -- Enhanced analysis
+  rootCauseAnalysis TEXT,
+  triggerPoints TEXT DEFAULT '[]',
+  familyHistory TEXT,
+  patientMedicalContext TEXT,
+  frequencyPatterns TEXT,
 
   -- Mood snapshots
-  pre_mood_value INTEGER,
-  pre_mood_label TEXT,
-  pre_mood_emoji TEXT,
-  post_mood_value INTEGER,
-  post_mood_label TEXT,
-  post_mood_emoji TEXT,
+  preMoodValue INTEGER,
+  preMoodLabel TEXT,
+  preMoodEmoji TEXT,
+  postMoodValue INTEGER,
+  postMoodLabel TEXT,
+  postMoodEmoji TEXT,
 
   -- Assessment snapshot
-  pre_assessment_type TEXT,
-  pre_assessment_score INTEGER,
-  pre_assessment_severity TEXT,
+  preAssessmentType TEXT,
+  preAssessmentScore INTEGER,
+  preAssessmentSeverity TEXT,
 
-  user_reflection TEXT,
+  userReflection TEXT,
   transcript TEXT DEFAULT '[]',
 
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Assessments (PHQ-9, GAD-7, PSS)
 CREATE TABLE IF NOT EXISTS assessments (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id TEXT,
+  userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sessionId TEXT,
   type TEXT NOT NULL CHECK(type IN ('PHQ9','GAD7','PSS')),
   responses TEXT NOT NULL DEFAULT '[]',
-  total_score INTEGER NOT NULL,
+  totalScore INTEGER NOT NULL,
   severity TEXT NOT NULL,
   color TEXT,
   timing TEXT CHECK(timing IN ('pre-session','post-session','standalone')),
-  completed_at TEXT NOT NULL
+  completedAt TEXT NOT NULL
 );
 
 -- Moods
 CREATE TABLE IF NOT EXISTS moods (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id TEXT,
+  userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sessionId TEXT,
   value INTEGER NOT NULL,
   label TEXT NOT NULL,
   emoji TEXT,
@@ -121,130 +130,221 @@ CREATE TABLE IF NOT EXISTS moods (
 -- Doctor notes (therapist's private notes per patient)
 CREATE TABLE IF NOT EXISTS doctor_notes (
   id TEXT PRIMARY KEY,
-  doctor_id TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-  patient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id TEXT,
-  note_type TEXT DEFAULT 'general' CHECK(note_type IN ('general','session','intake','discharge')),
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sessionId TEXT,
+  appointmentId TEXT,
+  noteType TEXT DEFAULT 'general' CHECK(noteType IN ('general','session','intake','discharge','soap')),
   title TEXT,
   content TEXT NOT NULL,
+  subjective TEXT,
+  objective TEXT,
+  assessmentText TEXT,
+  planText TEXT,
   tags TEXT DEFAULT '[]',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Medications (prescribed by doctor per patient)
 CREATE TABLE IF NOT EXISTS medications (
   id TEXT PRIMARY KEY,
-  doctor_id TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-  patient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   dosage TEXT NOT NULL,
   frequency TEXT NOT NULL,
-  start_date TEXT NOT NULL,
-  end_date TEXT,
+  startDate TEXT NOT NULL,
+  endDate TEXT,
   notes TEXT,
+  patientInfo TEXT,
   status TEXT DEFAULT 'active' CHECK(status IN ('active','discontinued','completed')),
-  patient_start_time TEXT,
-  dose_times TEXT DEFAULT '[]',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  patientStartTime TEXT,
+  doseTimes TEXT DEFAULT '[]',
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Bookmarks
 CREATE TABLE IF NOT EXISTS bookmarks (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   text TEXT NOT NULL,
   concern TEXT,
-  session_id TEXT,
-  session_date TEXT,
-  saved_at TEXT NOT NULL
+  sessionId TEXT,
+  sessionDate TEXT,
+  savedAt TEXT NOT NULL
 );
 
 -- Journal entries
 CREATE TABLE IF NOT EXISTS journal_entries (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
-  mood_tag TEXT,
-  mood_label TEXT,
+  moodTag TEXT,
+  moodLabel TEXT,
   tags TEXT DEFAULT '[]',
-  template_used TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  templateUsed TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Retention data
 CREATE TABLE IF NOT EXISTS retention (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  current_streak INTEGER DEFAULT 0,
-  longest_streak INTEGER DEFAULT 0,
-  last_session_date TEXT,
+  userId TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  currentStreak INTEGER DEFAULT 0,
+  longestStreak INTEGER DEFAULT 0,
+  lastSessionDate TEXT,
   milestones TEXT DEFAULT '{}',
   schedule TEXT DEFAULT '[]',
-  last_reminder_shown TEXT
+  lastReminderShown TEXT
 );
 
 -- Appointments
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
-  patient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  doctor_id TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-  date_time TEXT NOT NULL,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  dateTime TEXT NOT NULL,
   duration INTEGER NOT NULL DEFAULT 30,
-  status TEXT DEFAULT 'pending' CHECK(status IN ('pending','confirmed','cancelled','completed')),
+  status TEXT DEFAULT 'pending' CHECK(status IN ('pending','confirmed','cancelled','completed','in_progress')),
   notes TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  rescheduleReason TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Appointment check-ins (patient pre-session form)
+CREATE TABLE IF NOT EXISTS appointment_checkins (
+  id TEXT PRIMARY KEY,
+  appointmentId TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  moodValue INTEGER,
+  moodLabel TEXT,
+  concerns TEXT DEFAULT '[]',
+  goalsForSession TEXT,
+  symptomsSinceLast TEXT,
+  medicationIssues TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Medication dose logs (patient adherence tracking)
 CREATE TABLE IF NOT EXISTS medication_logs (
   id TEXT PRIMARY KEY,
-  medication_id TEXT NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
-  patient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  scheduled_time TEXT NOT NULL,
+  medicationId TEXT NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scheduledTime TEXT NOT NULL,
   status TEXT NOT NULL CHECK(status IN ('taken','skipped','missed')),
-  taken_at TEXT,
+  takenAt TEXT,
   notes TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  user_role TEXT NOT NULL CHECK(user_role IN ('patient','doctor')),
+  userId TEXT NOT NULL,
+  userRole TEXT NOT NULL CHECK(userRole IN ('patient','doctor')),
   type TEXT NOT NULL,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
-  reference_id TEXT,
-  reference_type TEXT,
-  is_read INTEGER DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  referenceId TEXT,
+  referenceType TEXT,
+  isRead INTEGER DEFAULT 0,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Treatment plans (therapist creates per patient)
+CREATE TABLE IF NOT EXISTS treatment_plans (
+  id TEXT PRIMARY KEY,
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  diagnosis TEXT,
+  status TEXT DEFAULT 'active' CHECK(status IN ('active','completed','paused','revised')),
+  startDate TEXT NOT NULL,
+  targetEndDate TEXT,
+  notes TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Treatment goals (belong to a treatment plan)
+CREATE TABLE IF NOT EXISTS treatment_goals (
+  id TEXT PRIMARY KEY,
+  planId TEXT NOT NULL REFERENCES treatment_plans(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  targetDate TEXT,
+  status TEXT DEFAULT 'active' CHECK(status IN ('active','achieved','paused','discontinued')),
+  progress INTEGER DEFAULT 0,
+  interventions TEXT DEFAULT '[]',
+  notes TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Safety plans (one active per patient per doctor)
+CREATE TABLE IF NOT EXISTS safety_plans (
+  id TEXT PRIMARY KEY,
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  warningSigns TEXT DEFAULT '[]',
+  copingStrategies TEXT DEFAULT '[]',
+  supportContacts TEXT DEFAULT '[]',
+  professionalContacts TEXT DEFAULT '[]',
+  environmentSafety TEXT,
+  reasonsForLiving TEXT DEFAULT '[]',
+  isActive INTEGER DEFAULT 1,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Clinical formulations (5P model)
+CREATE TABLE IF NOT EXISTS clinical_formulations (
+  id TEXT PRIMARY KEY,
+  doctorId TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  patientId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  presentingProblems TEXT DEFAULT '[]',
+  predisposingFactors TEXT DEFAULT '[]',
+  precipitatingFactors TEXT DEFAULT '[]',
+  perpetuatingFactors TEXT DEFAULT '[]',
+  protectiveFactors TEXT DEFAULT '[]',
+  formulationSummary TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(userId);
 CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
-CREATE INDEX IF NOT EXISTS idx_assessments_user ON assessments(user_id);
-CREATE INDEX IF NOT EXISTS idx_assessments_type ON assessments(user_id, type);
-CREATE INDEX IF NOT EXISTS idx_moods_user ON moods(user_id);
-CREATE INDEX IF NOT EXISTS idx_doctor_notes_doctor ON doctor_notes(doctor_id);
-CREATE INDEX IF NOT EXISTS idx_doctor_notes_patient ON doctor_notes(patient_id);
-CREATE INDEX IF NOT EXISTS idx_medications_patient ON medications(patient_id);
-CREATE INDEX IF NOT EXISTS idx_medications_doctor ON medications(doctor_id);
-CREATE INDEX IF NOT EXISTS idx_doctor_patient_links_doctor ON doctor_patient_links(doctor_id);
-CREATE INDEX IF NOT EXISTS idx_doctor_patient_links_patient ON doctor_patient_links(patient_id);
-CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
-CREATE INDEX IF NOT EXISTS idx_journal_user ON journal_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_user ON assessments(userId);
+CREATE INDEX IF NOT EXISTS idx_assessments_type ON assessments(userId, type);
+CREATE INDEX IF NOT EXISTS idx_moods_user ON moods(userId);
+CREATE INDEX IF NOT EXISTS idx_doctor_notes_doctor ON doctor_notes(doctorId);
+CREATE INDEX IF NOT EXISTS idx_doctor_notes_patient ON doctor_notes(patientId);
+CREATE INDEX IF NOT EXISTS idx_medications_patient ON medications(patientId);
+CREATE INDEX IF NOT EXISTS idx_medications_doctor ON medications(doctorId);
+CREATE INDEX IF NOT EXISTS idx_doctor_patient_links_doctor ON doctor_patient_links(doctorId);
+CREATE INDEX IF NOT EXISTS idx_doctor_patient_links_patient ON doctor_patient_links(patientId);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(userId);
+CREATE INDEX IF NOT EXISTS idx_journal_user ON journal_entries(userId);
 CREATE INDEX IF NOT EXISTS idx_doctors_username ON doctors(username);
-CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_doctor ON appointments(doctor_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_datetime ON appointments(date_time);
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, user_role);
-CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, user_role, is_read);
-CREATE INDEX IF NOT EXISTS idx_medication_logs_med ON medication_logs(medication_id);
-CREATE INDEX IF NOT EXISTS idx_medication_logs_patient ON medication_logs(patient_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patientId);
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor ON appointments(doctorId);
+CREATE INDEX IF NOT EXISTS idx_appointments_datetime ON appointments(dateTime);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, userRole);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(userId, userRole, isRead);
+CREATE INDEX IF NOT EXISTS idx_medication_logs_med ON medication_logs(medicationId);
+CREATE INDEX IF NOT EXISTS idx_medication_logs_patient ON medication_logs(patientId);
+CREATE INDEX IF NOT EXISTS idx_checkins_appointment ON appointment_checkins(appointmentId);
+CREATE INDEX IF NOT EXISTS idx_checkins_patient ON appointment_checkins(patientId);
+CREATE INDEX IF NOT EXISTS idx_treatment_plans_patient ON treatment_plans(patientId);
+CREATE INDEX IF NOT EXISTS idx_treatment_plans_doctor ON treatment_plans(doctorId);
+CREATE INDEX IF NOT EXISTS idx_treatment_goals_plan ON treatment_goals(planId);
+CREATE INDEX IF NOT EXISTS idx_safety_plans_patient ON safety_plans(patientId);
+CREATE INDEX IF NOT EXISTS idx_safety_plans_doctor ON safety_plans(doctorId);
+CREATE INDEX IF NOT EXISTS idx_clinical_formulations_patient ON clinical_formulations(patientId);
+CREATE INDEX IF NOT EXISTS idx_clinical_formulations_doctor ON clinical_formulations(doctorId);

@@ -11,34 +11,36 @@ const STREAK_MILESTONES: Record<number, { emoji: string; title: string; message:
   90: { emoji: '🌟', title: '90-day streak!',  message: '90 days. This is exceptional dedication to your health.' },
 };
 import { notes as notesApi, medications as medsApi, doctors as doctorsApi } from '../../services/api';
-import { getNextDoseTime, getRefillCountdown, postMedicationsToSW, cancelMedReminderInSW } from '../../utils/medicationReminders';
+import { getNextDoseTime, getRefillCountdown, postMedicationsToSW, cancelMedReminderInSW, closeAllMedNotificationsInSW } from '../../utils/medicationReminders';
+import { DoseLogGrouped } from '../DoseLogGrouped';
 
 interface DoctorNote {
   id: string;
-  doctor_id: string;
-  note_type: string;
+  doctorId: string;
+  noteType: string;
   title: string | null;
   content: string;
   tags: string[];
-  created_at: string;
+  createdAt: string;
 }
 
 interface Medication {
   id: string;
-  doctor_id: string;
+  doctorId: string;
   name: string;
   dosage: string;
   frequency: string;
-  start_date: string;
-  end_date: string | null;
+  startDate: string;
+  endDate: string | null;
   notes: string | null;
+  patientInfo: string | null;
   status: string;
-  patient_start_time: string | null;
-  dose_times: string[];
+  patientStartTime: string | null;
+  doseTimes: string[];
 }
 
 interface DoseTally {
-  medication_id: string;
+  medicationId: string;
   total: number;
   taken: number;
   skipped: number;
@@ -48,8 +50,8 @@ interface DoseTally {
 interface DayLog {
   day: string;
   status: string;
-  scheduled_time: string;
-  taken_at: string | null;
+  scheduledTime: string;
+  takenAt: string | null;
   notes: string | null;
 }
 
@@ -103,12 +105,12 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
         const medsTyped = meds as unknown as Medication[];
         setMedsList(medsTyped);
         const tallyMap = new Map<string, DoseTally>();
-        (tallyData as unknown as DoseTally[]).forEach(t => tallyMap.set(t.medication_id, t));
+        (tallyData as unknown as DoseTally[]).forEach(t => tallyMap.set(t.medicationId, t));
         setTallies(tallyMap);
 
         // Fetch today's logs to know which dose slots are already taken/skipped
         const today = new Date().toISOString().split('T')[0];
-        const activeMedsWithTimes = medsTyped.filter(m => m.status === 'active' && m.dose_times?.length > 0);
+        const activeMedsWithTimes = medsTyped.filter(m => m.status === 'active' && m.doseTimes?.length > 0);
         const todayLogResults = await Promise.allSettled(
           activeMedsWithTimes.map(m => medsApi.getRecentLogs(m.id, 1).then(logs => ({ medId: m.id, logs })))
         );
@@ -116,19 +118,19 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
         const takenTimesMap = new Map<string, Set<string>>();
         todayLogResults.forEach(r => {
           if (r.status !== 'fulfilled') return;
-          const { medId, logs } = r.value as { medId: string; logs: { day: string; status: string; scheduled_time: string }[] };
+          const { medId, logs } = r.value as { medId: string; logs: { day: string; status: string; scheduledTime: string }[] };
           const todayLogs = logs.filter(l => l.day === today);
           const taken = new Set<string>();
           todayLogs.forEach(l => {
-            const logHour = new Date(l.scheduled_time).getHours();
-            const logMin = new Date(l.scheduled_time).getMinutes();
+            const logHour = new Date(l.scheduledTime).getHours();
+            const logMin = new Date(l.scheduledTime).getMinutes();
             const logMins = logHour * 60 + logMin;
             const med = activeMedsWithTimes.find(m => m.id === medId);
             if (!med) return;
             // Find the dose_time slot closest to this log's time
-            let closest = med.dose_times[0];
+            let closest = med.doseTimes[0];
             let closestDiff = Infinity;
-            for (const t of med.dose_times) {
+            for (const t of med.doseTimes) {
               const [h, m2] = t.split(':').map(Number);
               const diff = Math.abs(h * 60 + m2 - logMins);
               if (diff < closestDiff) { closestDiff = diff; closest = t; }
@@ -141,7 +143,7 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
         // Post active med schedules to SW — only include dose times not yet taken today
         const activeMedsForSW = activeMedsWithTimes.map(m => {
           const taken = takenTimesMap.get(m.id) ?? new Set<string>();
-          const remainingTimes = m.dose_times.filter(t => !taken.has(t));
+          const remainingTimes = m.doseTimes.filter(t => !taken.has(t));
           return { id: m.id, name: m.name, dosage: m.dosage, frequency: m.frequency, doseTimes: remainingTimes };
         }).filter(m => m.doseTimes.length > 0);
         postMedicationsToSW(activeMedsForSW);
@@ -188,11 +190,12 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
         });
         const [tallyData, streakData] = await Promise.all([medsApi.getAllTallies(), medsApi.getStreak(medId)]);
         const tallyMap = new Map<string, DoseTally>();
-        (tallyData as unknown as DoseTally[]).forEach(t => tallyMap.set(t.medication_id, t));
+        (tallyData as unknown as DoseTally[]).forEach(t => tallyMap.set(t.medicationId, t));
         setTallies(tallyMap);
         setStreaks(prev => new Map(prev).set(medId, streakData.streak));
         setRecentLogs(prev => { const next = new Map(prev); next.delete(medId); return next; });
         cancelMedReminderInSW(medId, timeStr);
+        closeAllMedNotificationsInSW(medId);
       } catch { /* ignore */ } finally {
         setLoggingDose(false);
       }
@@ -204,55 +207,6 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
     if (!('Notification' in window)) return;
     setNotifPermission(Notification.permission);
   }, []);
-
-  // Set up browser notification reminders at dose times
-  useEffect(() => {
-    if (medsList.length === 0) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-    const activeMeds = medsList.filter(m => m.status === 'active' && m.dose_times?.length > 0);
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-
-    function scheduleReminder(med: Medication, timeStr: string, daysFromNow: number) {
-      const [h, m] = timeStr.split(':').map(Number);
-      const doseTime = new Date();
-      doseTime.setDate(doseTime.getDate() + daysFromNow);
-      doseTime.setHours(h, m, 0, 0);
-      const msUntil = doseTime.getTime() - Date.now();
-      if (msUntil > 0) {
-        const t = setTimeout(() => {
-          if (Notification.permission === 'granted') {
-            new Notification(`Time to take ${med.name}`, {
-              body: `${med.dosage} · ${med.frequency}`,
-              icon: '/favicon.ico',
-              tag: `med-${med.id}-${timeStr}-${daysFromNow}`,
-            });
-          }
-        }, msUntil);
-        timeouts.push(t);
-      }
-    }
-
-    for (const med of activeMeds) {
-      let scheduledAny = false;
-      for (const timeStr of med.dose_times) {
-        const [h, m] = timeStr.split(':').map(Number);
-        const doseTime = new Date();
-        doseTime.setHours(h, m, 0, 0);
-        if (doseTime > new Date()) {
-          scheduleReminder(med, timeStr, 0); // today
-          scheduledAny = true;
-        }
-      }
-      // If all today's dose times have passed, schedule the first dose tomorrow
-      if (!scheduledAny) {
-        const sorted = [...med.dose_times].sort();
-        scheduleReminder(med, sorted[0], 1);
-      }
-    }
-
-    return () => timeouts.forEach(t => clearTimeout(t));
-  }, [medsList]);
 
   // Fetch recent logs when a card is expanded
   useEffect(() => {
@@ -304,9 +258,27 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
     const effectsText = selectedEffects.length > 0 ? `[${selectedEffects.join(', ')}]` : '';
     const fullNote = [effectsText, note.trim()].filter(Boolean).join(' ');
     setSelectedEffects([]);
+
+    // Use the closest dose slot time as scheduledTime (not NOW)
+    const med = medsList.find(m => m.id === medId);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    let closestTime = med?.doseTimes?.[0] ?? null;
+    if (med?.doseTimes?.length) {
+      let closestDiff = Infinity;
+      for (const t of med.doseTimes) {
+        const [h, m] = t.split(':').map(Number);
+        const diff = Math.abs(h * 60 + m - nowMins);
+        if (diff < closestDiff) { closestDiff = diff; closestTime = t; }
+      }
+    }
+    const scheduledTime = closestTime
+      ? (() => { const [h, m] = closestTime.split(':').map(Number); const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString(); })()
+      : now.toISOString();
+
     try {
       await medsApi.logDose(medId, {
-        scheduledTime: new Date().toISOString(),
+        scheduledTime,
         status,
         takenAt: status === 'taken' ? new Date().toISOString() : undefined,
         notes: fullNote || undefined,
@@ -316,42 +288,32 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
         medsApi.getStreak(medId),
       ]);
       const tallyMap = new Map<string, DoseTally>();
-      (tallyData as unknown as DoseTally[]).forEach(t => tallyMap.set(t.medication_id, t));
+      (tallyData as unknown as DoseTally[]).forEach(t => tallyMap.set(t.medicationId, t));
       setTallies(tallyMap);
       setStreaks(prev => new Map(prev).set(medId, streakData.streak));
       setRecentLogs(prev => { const next = new Map(prev); next.delete(medId); return next; });
       // Re-fetch today's logs for this med and reschedule SW without already-taken times
-      const med = medsList.find(m => m.id === medId);
-      if (med?.dose_times?.length) {
-        const now = new Date();
-        const nowMins = now.getHours() * 60 + now.getMinutes();
-        // Find the dose time closest to now and cancel it
-        let closest = med.dose_times[0];
-        let closestDiff = Infinity;
-        for (const t of med.dose_times) {
-          const [h, m] = t.split(':').map(Number);
-          const diff = Math.abs(h * 60 + m - nowMins);
-          if (diff < closestDiff) { closestDiff = diff; closest = t; }
-        }
-        cancelMedReminderInSW(medId, closest);
+      if (med?.doseTimes?.length) {
+        if (closestTime) cancelMedReminderInSW(medId, closestTime);
+        closeAllMedNotificationsInSW(medId);
         // Reschedule SW with remaining (not-yet-taken) dose times for this med
         // Fetch fresh today logs then post remaining schedule to SW
         const today = new Date().toISOString().split('T')[0];
         medsApi.getRecentLogs(medId, 1).then(freshLogs => {
-          const typedLogs = freshLogs as unknown as { day: string; scheduled_time: string }[];
+          const typedLogs = freshLogs as unknown as { day: string; scheduledTime: string }[];
           const todayLogs = typedLogs.filter(l => l.day === today);
           const takenSet = new Set<string>();
           todayLogs.forEach(l => {
-            const logMins = new Date(l.scheduled_time).getHours() * 60 + new Date(l.scheduled_time).getMinutes();
-            let c = med.dose_times[0]; let cDiff = Infinity;
-            for (const t of med.dose_times) {
+            const logMins = new Date(l.scheduledTime).getHours() * 60 + new Date(l.scheduledTime).getMinutes();
+            let c = med.doseTimes[0]; let cDiff = Infinity;
+            for (const t of med.doseTimes) {
               const [h, m2] = t.split(':').map(Number);
               const d = Math.abs(h * 60 + m2 - logMins);
               if (d < cDiff) { cDiff = d; c = t; }
             }
             takenSet.add(c);
           });
-          const remaining = med.dose_times.filter(t => !takenSet.has(t));
+          const remaining = med.doseTimes.filter(t => !takenSet.has(t));
           if (remaining.length > 0) {
             postMedicationsToSW([{ id: med.id, name: med.name, dosage: med.dosage, frequency: med.frequency, doseTimes: remaining }]);
           }
@@ -428,12 +390,12 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
   }
 
   function getMissedDoseInfo(med: Medication, logs: DayLog[] | null): { time: string; hoursAgo: number } | null {
-    if (!med.dose_times?.length || !logs) return null;
+    if (!med.doseTimes?.length || !logs) return null;
     const today = new Date().toISOString().split('T')[0];
     const todayLogs = logs.filter(l => l.day === today && (l.status === 'taken' || l.status === 'skipped'));
-    if (todayLogs.length >= med.dose_times.length) return null; // all doses logged
+    if (todayLogs.length >= med.doseTimes.length) return null; // all doses logged
     const now = new Date();
-    for (const timeStr of med.dose_times) {
+    for (const timeStr of med.doseTimes) {
       const [h, m] = timeStr.split(':').map(Number);
       const doseTime = new Date();
       doseTime.setHours(h, m, 0, 0);
@@ -441,7 +403,7 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
       if (hoursAgo > 1 && hoursAgo < 24) {
         // Check if this specific time was already logged
         const alreadyLogged = todayLogs.some(l => {
-          const logTime = new Date(l.scheduled_time);
+          const logTime = new Date(l.scheduledTime);
           return Math.abs(logTime.getHours() - h) <= 1;
         });
         if (!alreadyLogged) return { time: timeStr, hoursAgo: Math.round(hoursAgo) };
@@ -453,10 +415,10 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
   // Group medications by doctor_id
   const medsGroupedByDoctor = new Map<string, { active: Medication[]; other: Medication[] }>();
   medsList.forEach(m => {
-    if (!medsGroupedByDoctor.has(m.doctor_id)) {
-      medsGroupedByDoctor.set(m.doctor_id, { active: [], other: [] });
+    if (!medsGroupedByDoctor.has(m.doctorId)) {
+      medsGroupedByDoctor.set(m.doctorId, { active: [], other: [] });
     }
-    const group = medsGroupedByDoctor.get(m.doctor_id)!;
+    const group = medsGroupedByDoctor.get(m.doctorId)!;
     if (m.status === 'active') group.active.push(m);
     else group.other.push(m);
   });
@@ -464,8 +426,8 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
   // Group notes by doctor_id
   const notesGroupedByDoctor = new Map<string, DoctorNote[]>();
   notesList.forEach(n => {
-    if (!notesGroupedByDoctor.has(n.doctor_id)) notesGroupedByDoctor.set(n.doctor_id, []);
-    notesGroupedByDoctor.get(n.doctor_id)!.push(n);
+    if (!notesGroupedByDoctor.has(n.doctorId)) notesGroupedByDoctor.set(n.doctorId, []);
+    notesGroupedByDoctor.get(n.doctorId)!.push(n);
   });
 
   function renderDoctorGroupHeader(doctorId: string, count: number, label: string) {
@@ -485,15 +447,15 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
 
   function renderMedCard(med: Medication) {
     const tally = tallies.get(med.id);
-    const daysLeft = getDaysUntilEnd(med.end_date);
+    const daysLeft = getDaysUntilEnd(med.endDate);
     const adherence = getAdherencePercent(tally);
     const streak = streaks.get(med.id) ?? 0;
     const isExpanded = expandedMed === med.id;
     const isEndingSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
     const hasEnded = daysLeft !== null && daysLeft <= 0;
-    const nextDoseLabel = med.dose_times?.length > 0 ? getNextDoseLabel(med.dose_times) : null;
+    const nextDoseLabel = med.doseTimes?.length > 0 ? getNextDoseLabel(med.doseTimes) : null;
     const logs = recentLogs.get(med.id) ?? null;
-    const refill = getRefillCountdown(med.end_date);
+    const refill = getRefillCountdown(med.endDate);
     const isPendingThisMed = pendingLog?.medId === med.id;
     const missedDose = isExpanded ? getMissedDoseInfo(med, logs) : null;
 
@@ -526,8 +488,8 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
             <span className="med-card-dosage">{med.dosage} — {med.frequency}</span>
             <div className="med-card-meta-row">
               <span className="med-card-dates">
-                Since {new Date(med.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                {med.end_date && ` until ${new Date(med.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                {med.startDate ? `Since ${new Date(med.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
+                {med.endDate && ` until ${new Date(med.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
               </span>
               {nextDoseLabel && (
                 <span className="med-next-dose">
@@ -558,6 +520,16 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
 
         {isExpanded && (
           <div className="med-card-expanded">
+            {med.patientInfo && (
+              <div className="med-patient-info-card">
+                <div className="med-patient-info-label">
+                  <FileText size={13} />
+                  Doctor's Instructions
+                </div>
+                <p className="med-patient-info-text">{med.patientInfo}</p>
+              </div>
+            )}
+
             {med.notes && (
               <div className="med-card-doctor-notes">
                 <strong>Doctor's notes:</strong> {med.notes}
@@ -597,32 +569,10 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
             {/* 7-day dot calendar */}
             <MedCalendar logs={logs} />
 
-            {/* Detailed log list with times + side effects */}
-            {logs && logs.length > 0 && (
-              <div className="patient-dose-log-list">
-                <div className="patient-dose-log-list-label">Recent doses</div>
-                {logs.slice(0, 10).map((log, idx) => (
-                  <div key={idx} className={`patient-dose-log-row log-${log.status}`}>
-                    <div className={`patient-dose-log-dot ${log.status}`} />
-                    <div className="patient-dose-log-info">
-                      <span className="patient-dose-log-time">
-                        {new Date(log.scheduled_time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        {' · '}
-                        {log.taken_at
-                          ? `Taken at ${new Date(log.taken_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`
-                          : new Date(log.scheduled_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className={`patient-dose-log-status ${log.status}`}>{log.status}</span>
-                      {log.notes && (
-                        <span className="patient-dose-log-note">{log.notes}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Grouped dose log history */}
+            {logs && <DoseLogGrouped logs={logs} label="Dose history" maxDays={14} />}
 
-            {!med.patient_start_time ? (
+            {!med.patientStartTime ? (
               <button className="med-start-btn" onClick={() => handleSetStartTime(med.id)}>
                 <Clock size={14} />
                 <span>Mark as started (set start time)</span>
@@ -630,14 +580,14 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
             ) : (
               <div className="med-started-info">
                 <Clock size={14} />
-                <span>Started: {new Date(med.patient_start_time).toLocaleDateString('en-IN', {
+                <span>Started: {new Date(med.patientStartTime).toLocaleDateString('en-IN', {
                   day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'
                 })}</span>
               </div>
             )}
 
             <DoseTimeEditor
-              doseTimes={med.dose_times || []}
+              doseTimes={med.doseTimes || []}
               onSave={(times) => handleSetDoseTimes(med.id, times)}
             />
 
@@ -647,19 +597,21 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
                 <History size={13} /> Timeline
               </div>
               <div className="med-history-events">
+                {med.startDate && (
                 <div className="med-history-event">
                   <div className="med-history-dot prescribed" />
                   <span className="med-history-text">Prescribed</span>
                   <span className="med-history-date">
-                    {new Date(med.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {new Date(med.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
-                {med.patient_start_time && (
+                )}
+                {med.patientStartTime && (
                   <div className="med-history-event">
                     <div className="med-history-dot started" />
                     <span className="med-history-text">You started</span>
                     <span className="med-history-date">
-                      {new Date(med.patient_start_time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(med.patientStartTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
                 )}
@@ -670,12 +622,12 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
                     <span className="med-history-date">{streak} day{streak !== 1 ? 's' : ''}</span>
                   </div>
                 )}
-                {med.end_date && (
+                {med.endDate && (
                   <div className="med-history-event">
                     <div className={`med-history-dot ${hasEnded ? 'ended' : 'future'}`} />
                     <span className="med-history-text">{hasEnded ? 'Course ended' : 'Course ends'}</span>
                     <span className="med-history-date">
-                      {new Date(med.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(med.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
                 )}
@@ -794,9 +746,9 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
                           {notes.map(note => (
                             <div key={note.id} className="doctor-input-note-card">
                               <div className="doctor-input-note-header">
-                                <span className={`doctor-input-note-type ${note.note_type}`}>{note.note_type}</span>
+                                <span className={`doctor-input-note-type ${note.noteType}`}>{note.noteType}</span>
                                 <span className="doctor-input-note-date">
-                                  {new Date(note.created_at).toLocaleDateString('en-IN', {
+                                  {new Date(note.createdAt).toLocaleDateString('en-IN', {
                                     day: 'numeric', month: 'short', year: 'numeric'
                                   })}
                                 </span>

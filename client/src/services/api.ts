@@ -92,6 +92,7 @@ export const assessments = {
   list: () => request<Record<string, unknown>[]>('/api/assessments'),
   getLatest: (type: string) => request<Record<string, unknown> | null>(`/api/assessments/latest/${type}`),
   create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/assessments', { method: 'POST', body: JSON.stringify(data) }),
+  getPatientTrends: (patientId: string) => request<Record<string, unknown>>(`/api/assessments/patient/${patientId}/trends`),
 };
 
 // Moods
@@ -158,6 +159,49 @@ export const appointments = {
   create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/appointments', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id: string) => request<{ success: boolean }>(`/api/appointments/${id}`, { method: 'DELETE' }),
+  start: (id: string) => request<Record<string, unknown>>(`/api/appointments/${id}/start`, { method: 'PUT' }),
+  complete: (id: string) => request<Record<string, unknown>>(`/api/appointments/${id}/complete`, { method: 'PUT' }),
+  reschedule: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/appointments/${id}/reschedule`, { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// Appointment check-ins
+export const checkins = {
+  get: (appointmentId: string) => request<Record<string, unknown> | null>(`/api/checkins/${appointmentId}`),
+  create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/checkins', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// Treatment plans
+export const treatmentPlans = {
+  list: (patientId: string) => request<Record<string, unknown>[]>(`/api/treatment-plans?patientId=${patientId}`),
+  get: (id: string) => request<Record<string, unknown>>(`/api/treatment-plans/${id}`),
+  create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/treatment-plans', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/treatment-plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id: string) => request<{ success: boolean }>(`/api/treatment-plans/${id}`, { method: 'DELETE' }),
+  getGoals: (planId: string) => request<Record<string, unknown>[]>(`/api/treatment-plans/${planId}/goals`),
+  createGoal: (planId: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/treatment-plans/${planId}/goals`, { method: 'POST', body: JSON.stringify(data) }),
+  updateGoal: (planId: string, goalId: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/treatment-plans/${planId}/goals/${goalId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  removeGoal: (planId: string, goalId: string) => request<{ success: boolean }>(`/api/treatment-plans/${planId}/goals/${goalId}`, { method: 'DELETE' }),
+};
+
+// Safety plans
+export const safetyPlans = {
+  get: (patientId: string) => request<Record<string, unknown> | null>(`/api/safety-plans?patientId=${patientId}`),
+  getById: (id: string) => request<Record<string, unknown>>(`/api/safety-plans/${id}`),
+  create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/safety-plans', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/safety-plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id: string) => request<{ success: boolean }>(`/api/safety-plans/${id}`, { method: 'DELETE' }),
+};
+
+// Clinical formulations
+export const formulations = {
+  get: (patientId: string) => request<Record<string, unknown> | null>(`/api/formulations?patientId=${patientId}`),
+  create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/formulations', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/api/formulations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// Clinical timeline
+export const timeline = {
+  get: (patientId: string, types?: string) => request<Record<string, unknown>[]>(`/api/timeline/${patientId}${types ? `?types=${types}` : ''}`),
 };
 
 // Notifications

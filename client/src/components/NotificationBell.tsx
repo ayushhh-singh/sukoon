@@ -8,10 +8,10 @@ interface Notification {
   type: string;
   title: string;
   message: string;
-  reference_id: string | null;
-  reference_type: string | null;
-  is_read: number;
-  created_at: string;
+  referenceId: string | null;
+  referenceType: string | null;
+  isRead: number;
+  createdAt: string;
 }
 
 interface NotificationBellProps {
@@ -119,7 +119,7 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
   async function handleMarkRead(id: string) {
     try {
       await notificationsApi.markRead(id);
-      setNotificationsList(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
+      setNotificationsList(prev => prev.map(n => n.id === id ? { ...n, isRead: 1 } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch {
       // ignore
@@ -129,7 +129,7 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
   async function handleMarkAllRead() {
     try {
       await notificationsApi.markAllRead();
-      setNotificationsList(prev => prev.map(n => ({ ...n, is_read: 1 })));
+      setNotificationsList(prev => prev.map(n => ({ ...n, isRead: 1 })));
       setUnreadCount(0);
     } catch {
       // ignore
@@ -142,7 +142,7 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
       await notificationsApi.remove(id);
       const deleted = notificationsList.find(n => n.id === id);
       setNotificationsList(prev => prev.filter(n => n.id !== id));
-      if (deleted && !deleted.is_read) {
+      if (deleted && !deleted.isRead) {
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch {
@@ -161,13 +161,13 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
   }
 
   function handleNotificationClick(notif: Notification) {
-    if (!notif.is_read) {
+    if (!notif.isRead) {
       handleMarkRead(notif.id);
     }
-    if (onNavigate && notif.reference_type) {
-      if (notif.reference_type === 'appointment') {
+    if (onNavigate && notif.referenceType) {
+      if (notif.referenceType === 'appointment') {
         onNavigate('appointments');
-      } else if (notif.reference_type === 'note' || notif.reference_type === 'medication') {
+      } else if (notif.referenceType === 'note' || notif.referenceType === 'medication') {
         onNavigate('doctor-input');
       }
     }
@@ -183,7 +183,7 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
 
   function timeAgo(dateStr: string): string {
     const now = Date.now();
-    const d = new Date(dateStr + 'Z').getTime();
+    const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z').getTime();
     const diff = Math.floor((now - d) / 1000);
     if (diff < 60) return 'just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -222,17 +222,17 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
         {!loading && notificationsList.map(notif => (
           <div
             key={notif.id}
-            className={`notification-item ${notif.is_read ? '' : 'notification-unread'}`}
+            className={`notification-item ${notif.isRead ? '' : 'notification-unread'}`}
             onClick={() => handleNotificationClick(notif)}
           >
             <div className="notification-item-icon">{getNotifIcon(notif.type)}</div>
             <div className="notification-item-content">
               <span className="notification-item-title">{notif.title}</span>
               <span className="notification-item-message">{notif.message}</span>
-              <span className="notification-item-time">{timeAgo(notif.created_at)}</span>
+              <span className="notification-item-time">{timeAgo(notif.createdAt)}</span>
             </div>
             <div className="notification-item-btns">
-              {!notif.is_read && (
+              {!notif.isRead && (
                 <button
                   className="notification-item-read-btn"
                   onClick={(e) => { e.stopPropagation(); handleMarkRead(notif.id); }}

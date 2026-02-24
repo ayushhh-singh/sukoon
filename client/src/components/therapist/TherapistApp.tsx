@@ -7,6 +7,7 @@ import { TherapistNotes } from './TherapistNotes';
 import { TherapistMedications } from './TherapistMedications';
 import { TherapistAppointments } from './TherapistAppointments';
 import { TherapistProfile } from './TherapistProfile';
+import { SOAPNoteEditor } from './SOAPNoteEditor';
 import { NotificationBell } from '../NotificationBell';
 import { ThemeToggle } from '../ThemeToggle';
 
@@ -15,6 +16,7 @@ type Tab = 'dashboard' | 'patients' | 'appointments' | 'notes' | 'medications' |
 export function TherapistApp() {
   const { doctor, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [soapNote, setSoapNote] = useState<{ appointmentId: string; patientId: string } | null>(null);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
@@ -65,11 +67,19 @@ export function TherapistApp() {
       <main className="therapist-main">
         {activeTab === 'dashboard' && <TherapistOverview />}
         {activeTab === 'patients' && <TherapistPatients />}
-        {activeTab === 'appointments' && <TherapistAppointments />}
+        {activeTab === 'appointments' && <TherapistAppointments onOpenSOAPNote={(appointmentId, patientId) => setSoapNote({ appointmentId, patientId })} />}
         {activeTab === 'notes' && <TherapistNotes />}
         {activeTab === 'medications' && <TherapistMedications />}
         {activeTab === 'profile' && <TherapistProfile />}
       </main>
+      {soapNote && (
+        <SOAPNoteEditor
+          patientId={soapNote.patientId}
+          appointmentId={soapNote.appointmentId}
+          onSave={() => setSoapNote(null)}
+          onCancel={() => setSoapNote(null)}
+        />
+      )}
     </div>
   );
 }

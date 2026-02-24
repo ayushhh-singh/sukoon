@@ -4,34 +4,34 @@ import { v4 as uuidv4 } from 'uuid';
 export interface User {
   id: string;
   email: string;
-  password_hash: string;
-  display_name: string;
+  passwordHash: string;
+  displayName: string;
   age: number | null;
   profession: string | null;
-  primary_concerns: string[];
-  therapy_experience: 'none' | 'some' | 'regular';
+  primaryConcerns: string[];
+  therapyExperience: 'none' | 'some' | 'regular';
   language: string;
-  voice_preference: string;
-  ambient_sound: string;
-  consent_given: number;
-  known_disorders: string[];
-  current_medications: string[];
-  created_at: string;
-  updated_at: string;
+  voicePreference: string;
+  ambientSound: string;
+  consentGiven: number;
+  knownDisorders: string[];
+  currentMedications: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface UserRow extends Omit<User, 'primary_concerns' | 'known_disorders' | 'current_medications'> {
-  primary_concerns: string;
-  known_disorders: string;
-  current_medications: string;
+interface UserRow extends Omit<User, 'primaryConcerns' | 'knownDisorders' | 'currentMedications'> {
+  primaryConcerns: string;
+  knownDisorders: string;
+  currentMedications: string;
 }
 
 function parseUser(row: UserRow): User {
   return {
     ...row,
-    primary_concerns: JSON.parse(row.primary_concerns || '[]'),
-    known_disorders: JSON.parse(row.known_disorders || '[]'),
-    current_medications: JSON.parse(row.current_medications || '[]'),
+    primaryConcerns: JSON.parse(row.primaryConcerns || '[]'),
+    knownDisorders: JSON.parse(row.knownDisorders || '[]'),
+    currentMedications: JSON.parse(row.currentMedications || '[]'),
   };
 }
 
@@ -41,7 +41,7 @@ export function findById(id: string): User | undefined {
 }
 
 export function findAll(): User[] {
-  const rows = db.prepare('SELECT * FROM users ORDER BY display_name ASC').all() as UserRow[];
+  const rows = db.prepare('SELECT * FROM users ORDER BY displayName ASC').all() as UserRow[];
   return rows.map(parseUser);
 }
 
@@ -52,57 +52,57 @@ export function findByEmail(email: string): User | undefined {
 
 export interface CreateUserInput {
   email: string;
-  password_hash: string;
-  display_name: string;
+  passwordHash: string;
+  displayName: string;
   age?: number;
   profession?: string;
-  primary_concerns?: string[];
-  therapy_experience?: 'none' | 'some' | 'regular';
+  primaryConcerns?: string[];
+  therapyExperience?: 'none' | 'some' | 'regular';
   language?: string;
-  voice_preference?: string;
-  ambient_sound?: string;
+  voicePreference?: string;
+  ambientSound?: string;
 }
 
 export function create(data: CreateUserInput): User {
   const id = `user-${uuidv4()}`;
   db.prepare(`
-    INSERT INTO users (id, email, password_hash, display_name, age, profession, primary_concerns, therapy_experience, language, voice_preference, ambient_sound)
+    INSERT INTO users (id, email, passwordHash, displayName, age, profession, primaryConcerns, therapyExperience, language, voicePreference, ambientSound)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.email.toLowerCase(),
-    data.password_hash,
-    data.display_name,
+    data.passwordHash,
+    data.displayName,
     data.age ?? null,
     data.profession ?? null,
-    JSON.stringify(data.primary_concerns || []),
-    data.therapy_experience || 'none',
+    JSON.stringify(data.primaryConcerns || []),
+    data.therapyExperience || 'none',
     data.language || 'English',
-    data.voice_preference || 'female',
-    data.ambient_sound || 'none',
+    data.voicePreference || 'female',
+    data.ambientSound || 'none',
   );
   return findById(id)!;
 }
 
-export function update(id: string, data: Partial<Omit<User, 'id' | 'email' | 'password_hash' | 'created_at'>>): User | undefined {
+export function update(id: string, data: Partial<Omit<User, 'id' | 'email' | 'passwordHash' | 'createdAt'>>): User | undefined {
   const fields: string[] = [];
   const values: unknown[] = [];
 
-  if (data.display_name !== undefined) { fields.push('display_name = ?'); values.push(data.display_name); }
+  if (data.displayName !== undefined) { fields.push('displayName = ?'); values.push(data.displayName); }
   if (data.age !== undefined) { fields.push('age = ?'); values.push(data.age); }
   if (data.profession !== undefined) { fields.push('profession = ?'); values.push(data.profession); }
-  if (data.primary_concerns !== undefined) { fields.push('primary_concerns = ?'); values.push(JSON.stringify(data.primary_concerns)); }
-  if (data.therapy_experience !== undefined) { fields.push('therapy_experience = ?'); values.push(data.therapy_experience); }
+  if (data.primaryConcerns !== undefined) { fields.push('primaryConcerns = ?'); values.push(JSON.stringify(data.primaryConcerns)); }
+  if (data.therapyExperience !== undefined) { fields.push('therapyExperience = ?'); values.push(data.therapyExperience); }
   if (data.language !== undefined) { fields.push('language = ?'); values.push(data.language); }
-  if (data.voice_preference !== undefined) { fields.push('voice_preference = ?'); values.push(data.voice_preference); }
-  if (data.ambient_sound !== undefined) { fields.push('ambient_sound = ?'); values.push(data.ambient_sound); }
-  if (data.consent_given !== undefined) { fields.push('consent_given = ?'); values.push(data.consent_given); }
-  if (data.known_disorders !== undefined) { fields.push('known_disorders = ?'); values.push(JSON.stringify(data.known_disorders)); }
-  if (data.current_medications !== undefined) { fields.push('current_medications = ?'); values.push(JSON.stringify(data.current_medications)); }
+  if (data.voicePreference !== undefined) { fields.push('voicePreference = ?'); values.push(data.voicePreference); }
+  if (data.ambientSound !== undefined) { fields.push('ambientSound = ?'); values.push(data.ambientSound); }
+  if (data.consentGiven !== undefined) { fields.push('consentGiven = ?'); values.push(data.consentGiven); }
+  if (data.knownDisorders !== undefined) { fields.push('knownDisorders = ?'); values.push(JSON.stringify(data.knownDisorders)); }
+  if (data.currentMedications !== undefined) { fields.push('currentMedications = ?'); values.push(JSON.stringify(data.currentMedications)); }
 
   if (fields.length === 0) return findById(id);
 
-  fields.push("updated_at = datetime('now')");
+  fields.push("updatedAt = datetime('now')");
   values.push(id);
 
   db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values);

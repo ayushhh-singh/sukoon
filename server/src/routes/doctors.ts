@@ -6,12 +6,12 @@ import * as userRepo from '../db/repositories/userRepo';
 const router = Router();
 
 function sanitizeDoctor(doctor: doctorRepo.Doctor) {
-  const { password_hash, ...safe } = doctor;
+  const { passwordHash, ...safe } = doctor;
   return safe;
 }
 
 function sanitizeUser(user: userRepo.User) {
-  const { password_hash, ...safe } = user;
+  const { passwordHash, ...safe } = user;
   return safe;
 }
 
@@ -26,17 +26,17 @@ router.get('/me', requireRole('doctor', 'admin'), (req: Request, res: Response) 
 router.put('/me', requireRole('doctor', 'admin'), (req: Request, res: Response) => {
   const { displayName, age, gender, experienceYears, specializations, qualifications, bio, clinicName, clinicAddress, phone, acceptingPatients } = req.body;
   const updated = doctorRepo.update(req.user!.id, {
-    display_name: displayName,
+    displayName,
     age,
     gender,
-    experience_years: experienceYears,
+    experienceYears,
     specializations,
     qualifications,
     bio,
-    clinic_name: clinicName,
-    clinic_address: clinicAddress,
+    clinicName,
+    clinicAddress,
     phone,
-    accepting_patients: acceptingPatients,
+    acceptingPatients,
   });
   if (!updated) { res.status(404).json({ error: 'Doctor not found' }); return; }
   res.json(sanitizeDoctor(updated));
@@ -50,55 +50,30 @@ router.get('/search', requireRole('patient'), (req: Request, res: Response) => {
   res.json(doctors.map(d => ({
     id: d.id,
     username: d.username,
-    displayName: d.display_name,
+    displayName: d.displayName,
     specializations: d.specializations,
-    experienceYears: d.experience_years,
+    experienceYears: d.experienceYears,
     qualifications: d.qualifications,
-    acceptingPatients: d.accepting_patients,
+    acceptingPatients: d.acceptingPatients,
   })));
 });
 
 // GET /api/doctors/me/patients — doctor gets linked patients, admin gets ALL patients
-// NOTE: Must be before /:id to avoid matching "me" as an id
 router.get('/me/patients', requireRole('doctor', 'admin'), (req: Request, res: Response) => {
-  function toCamelCase(user: Omit<userRepo.User, 'password_hash'>) {
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.display_name,
-      age: user.age,
-      profession: user.profession,
-      primaryConcerns: user.primary_concerns,
-      therapyExperience: user.therapy_experience,
-      language: user.language,
-      voicePreference: user.voice_preference,
-      ambientSound: user.ambient_sound,
-      consentGiven: user.consent_given,
-      knownDisorders: user.known_disorders,
-      currentMedications: user.current_medications,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
-  }
-
   if (req.user!.role === 'admin') {
     const allPatients = userRepo.findAll();
-    res.json(allPatients.map(u => toCamelCase(sanitizeUser(u))));
+    res.json(allPatients.map(u => sanitizeUser(u)));
     return;
   }
   const patientIds = doctorRepo.getLinkedPatientIds(req.user!.id);
-  const patients = patientIds.map(id => userRepo.findById(id)).filter(Boolean).map(u => toCamelCase(sanitizeUser(u!)));
+  const patients = patientIds.map(id => userRepo.findById(id)).filter(Boolean).map(u => sanitizeUser(u!));
   res.json(patients);
 });
 
 // GET /api/doctors/me/linked — patient gets linked doctor IDs
-// NOTE: Must be before /:id to avoid matching "me" as an id
 router.get('/me/linked', requireRole('patient'), (req: Request, res: Response) => {
   const doctorIds = doctorRepo.getLinkedDoctorIds(req.user!.id);
-  const doctors = doctorIds.map(id => doctorRepo.findById(id)).filter(Boolean).map(d => {
-    const safe = sanitizeDoctor(d!);
-    return { ...safe, displayName: safe.display_name };
-  });
+  const doctors = doctorIds.map(id => doctorRepo.findById(id)).filter(Boolean).map(d => sanitizeDoctor(d!));
   res.json(doctors);
 });
 
@@ -121,20 +96,19 @@ router.delete('/link/:doctorId', requireRole('patient'), (req: Request, res: Res
 });
 
 // GET /api/doctors/:id — any authenticated user
-// NOTE: Must be AFTER all /me/* routes to avoid matching "me" as an id
 router.get('/:id', (req: Request, res: Response) => {
   const doctor = doctorRepo.findById(req.params.id as string);
   if (!doctor) { res.status(404).json({ error: 'Doctor not found' }); return; }
   res.json({
     id: doctor.id,
     username: doctor.username,
-    displayName: doctor.display_name,
+    displayName: doctor.displayName,
     specializations: doctor.specializations,
-    experienceYears: doctor.experience_years,
+    experienceYears: doctor.experienceYears,
     qualifications: doctor.qualifications,
     bio: doctor.bio,
-    clinicName: doctor.clinic_name,
-    acceptingPatients: doctor.accepting_patients,
+    clinicName: doctor.clinicName,
+    acceptingPatients: doctor.acceptingPatients,
   });
 });
 

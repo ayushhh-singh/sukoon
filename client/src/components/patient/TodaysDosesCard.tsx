@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Pill, CheckCircle, XCircle, ChevronDown, ChevronUp, Flame } from 'lucide-react';
 import { medications as medsApi } from '../../services/api';
+import { cancelMedReminderInSW, closeAllMedNotificationsInSW } from '../../utils/medicationReminders';
 
 interface Medication {
   id: string;
@@ -8,8 +9,8 @@ interface Medication {
   dosage: string;
   frequency: string;
   status: string;
-  dose_times: string[];
-  doctor_id: string;
+  doseTimes: string[];
+  doctorId: string;
 }
 
 interface DoseSlot {
@@ -36,14 +37,13 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
 
   const buildSlots = useCallback((meds: Medication[]) => {
     const now = new Date();
-    const todayKey = now.toISOString().split('T')[0];
     const result: DoseSlot[] = [];
 
     for (const med of meds) {
-      if (med.status !== 'active' || !med.dose_times?.length) continue;
-      for (const timeStr of [...med.dose_times].sort()) {
+      if (med.status !== 'active' || !med.doseTimes?.length) continue;
+      for (const timeStr of [...med.doseTimes].sort()) {
         const [h, m] = timeStr.split(':').map(Number);
-        const doseTime = new Date(todayKey + 'T00:00:00');
+        const doseTime = new Date();
         doseTime.setHours(h, m, 0, 0);
         result.push({
           medId: med.id,
@@ -63,7 +63,7 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
   const load = useCallback(async () => {
     try {
       const meds = await medsApi.list();
-      const activeMeds = (meds as unknown as Medication[]).filter(m => m.status === 'active' && m.dose_times?.length);
+      const activeMeds = (meds as unknown as Medication[]).filter(m => m.status === 'active' && m.doseTimes?.length);
       const initialSlots = buildSlots(activeMeds);
 
       // Load today's existing logs to mark already-logged slots
@@ -74,19 +74,19 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
       const todayLogMap = new Map<string, 'taken' | 'skipped'>();
       logResults.forEach(r => {
         if (r.status !== 'fulfilled') return;
-        const { medId, logs } = r.value as { medId: string; logs: { day: string; status: string; scheduled_time: string }[] };
+        const { medId, logs } = r.value as { medId: string; logs: { day: string; status: string; scheduledTime: string }[] };
         const todayLogs = logs.filter(l => l.day === today);
-        // Map dose times to statuses based on closest scheduled_time
+        // Map dose times to statuses based on closest scheduledTime
         todayLogs.forEach(l => {
-          const logHour = new Date(l.scheduled_time).getHours();
-          const logMin = new Date(l.scheduled_time).getMinutes();
+          const logHour = new Date(l.scheduledTime).getHours();
+          const logMin = new Date(l.scheduledTime).getMinutes();
           const logMins = logHour * 60 + logMin;
-          // Find the dose_time slot closest to this log's scheduled_time
+          // Find the dose slot closest to this log's scheduledTime
           const med = activeMeds.find(m => m.id === medId);
           if (!med) return;
-          let closest = med.dose_times[0];
+          let closest = med.doseTimes[0];
           let closestDiff = Infinity;
-          for (const t of med.dose_times) {
+          for (const t of med.doseTimes) {
             const [h, m2] = t.split(':').map(Number);
             const diff = Math.abs(h * 60 + m2 - logMins);
             if (diff < closestDiff) { closestDiff = diff; closest = t; }
@@ -106,14 +106,23 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  /** Build an ISO timestamp for a dose slot time (e.g. "08:00") today */
+  function slotToISO(timeStr: string): string {
+    const [h, m] = timeStr.split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    return d.toISOString();
+  }
+
   async function handleLog(slot: DoseSlot, status: 'taken' | 'skipped') {
     const key = `${slot.medId}-${slot.timeStr}`;
+    const scheduledTime = slotToISO(slot.timeStr);
+
     if (noteFor === key && status === 'taken') {
       // Submit with note
       setLogging(key);
       try {
         await medsApi.logDose(slot.medId, {
-          scheduledTime: new Date().toISOString(),
+          scheduledTime,
           status,
           takenAt: new Date().toISOString(),
           notes: noteText || undefined,
@@ -123,6 +132,8 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
             ? { ...s, logged: true, loggedStatus: status }
             : s
         ));
+        cancelMedReminderInSW(slot.medId, slot.timeStr);
+        closeAllMedNotificationsInSW(slot.medId);
         setNoteFor(null);
         setNoteText('');
       } catch { /* ignore */ } finally {
@@ -142,9 +153,11 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
     setLogging(key);
     try {
       await medsApi.logDose(slot.medId, {
-        scheduledTime: new Date().toISOString(),
+        scheduledTime,
         status,
       });
+      cancelMedReminderInSW(slot.medId, slot.timeStr);
+      closeAllMedNotificationsInSW(slot.medId);
       setSlots(prev => prev.map(s =>
         s.medId === slot.medId && s.timeStr === slot.timeStr
           ? { ...s, logged: true, loggedStatus: status }

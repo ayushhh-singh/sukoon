@@ -44,7 +44,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ onClose, i
       .filter(m => m.context === 'pre-session')
       .slice(-10)
       .map(m => ({
-        date: new Date((m.timestamp || m.created_at) as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+        date: new Date(m.timestamp as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
         value: (m.value as number) || 3,
       }));
   }, [moodList]);
@@ -61,7 +61,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ onClose, i
       weekEnd.setDate(weekStart.getDate() + 7);
 
       const count = sessionList.filter(s => {
-        const d = new Date((s.date || s.created_at) as string);
+        const d = new Date(s.date as string);
         return d >= weekStart && d < weekEnd;
       }).length;
 
@@ -89,9 +89,9 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ onClose, i
 
   const rawStreak = retentionData?.streak as Record<string, unknown> | undefined;
   const streak: StreakData | undefined = rawStreak ? {
-    currentStreak: (rawStreak.currentStreak ?? rawStreak.current_streak ?? 0) as number,
-    longestStreak: (rawStreak.longestStreak ?? rawStreak.longest_streak ?? 0) as number,
-    lastSessionDate: (rawStreak.lastSessionDate ?? rawStreak.last_session_date ?? '') as string,
+    currentStreak: (rawStreak.currentStreak ?? 0) as number,
+    longestStreak: (rawStreak.longestStreak ?? 0) as number,
+    lastSessionDate: (rawStreak.lastSessionDate ?? '') as string,
   } : undefined;
   const milestones = (retentionData?.milestones || {}) as Record<string, string | null>;
   const schedule = (retentionData?.schedule || []) as ScheduleEntry[];

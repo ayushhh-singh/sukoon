@@ -19,36 +19,6 @@ const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf-8');
 db.exec(schema);
 
-// Migrations for existing databases — add new columns safely
-function addColumnIfNotExists(table: string, column: string, definition: string): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some(c => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-    console.log(`[Sukoon] Added column ${table}.${column}`);
-  }
-}
-
-// User medical history fields
-addColumnIfNotExists('users', 'known_disorders', "TEXT DEFAULT '[]'");
-addColumnIfNotExists('users', 'current_medications', "TEXT DEFAULT '[]'");
-
-// Enhanced session summary fields
-addColumnIfNotExists('sessions', 'root_cause_analysis', 'TEXT');
-addColumnIfNotExists('sessions', 'trigger_points', "TEXT DEFAULT '[]'");
-addColumnIfNotExists('sessions', 'family_history', 'TEXT');
-addColumnIfNotExists('sessions', 'patient_medical_context', 'TEXT');
-addColumnIfNotExists('sessions', 'frequency_patterns', 'TEXT');
-
-// Medication tracking fields
-addColumnIfNotExists('medications', 'patient_start_time', 'TEXT');
-addColumnIfNotExists('medications', 'dose_times', "TEXT DEFAULT '[]'");
-addColumnIfNotExists('medications', 'patient_info', 'TEXT');
-addColumnIfNotExists('medications', 'end_date', 'TEXT');
-
-// Medication log detail fields
-addColumnIfNotExists('medication_logs', 'taken_at', 'TEXT');
-addColumnIfNotExists('medication_logs', 'notes', 'TEXT');
-
 console.log('[Sukoon] SQLite database initialized');
 
 export default db;

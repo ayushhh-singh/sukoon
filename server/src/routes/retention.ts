@@ -14,7 +14,7 @@ router.get('/', (req: Request, res: Response) => {
 router.put('/', (req: Request, res: Response) => {
   try {
     const data = req.body;
-    data.user_id = req.user!.id;
+    data.userId = req.user!.id;
     retentionRepo.upsert(data);
     res.json(retentionRepo.findByUserId(req.user!.id));
   } catch (error) {

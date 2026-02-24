@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, ChevronDown, ChevronUp, User, CheckCircle, XCircle, AlertTriangle, Clock, FileText, Flame, Info } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronUp, User, CheckCircle, XCircle, AlertTriangle, Clock, FileText, Info } from 'lucide-react';
 import { medications as medsApi, doctors as doctorsApi } from '../../services/api';
 import { MedicationEditor } from './MedicationEditor';
+import { DoseLogGrouped } from '../DoseLogGrouped';
 
 interface PatientInfo {
   id: string;
@@ -9,7 +10,7 @@ interface PatientInfo {
 }
 
 interface DoseTally {
-  medication_id: string;
+  medicationId: string;
   total: number;
   taken: number;
   skipped: number;
@@ -19,8 +20,8 @@ interface DoseTally {
 interface DoseLog {
   id: string;
   status: string;
-  scheduled_time: string;
-  taken_at: string | null;
+  scheduledTime: string;
+  takenAt: string | null;
   notes: string | null;
 }
 
@@ -55,7 +56,7 @@ export function TherapistMedications() {
       for (const pid of patientIds) {
         try {
           const tData = await medsApi.getAllTallies(pid);
-          (tData as unknown as DoseTally[]).forEach(t => allTallies.set(t.medication_id, t));
+          (tData as unknown as DoseTally[]).forEach(t => allTallies.set(t.medicationId, t));
         } catch { /* ignore */ }
       }
       setTallies(allTallies);
@@ -176,7 +177,7 @@ export function TherapistMedications() {
           <div className="therapist-med-details">
             <span>{m.dosage as string}</span>
             <span>{m.frequency as string}</span>
-            {m.endDate && (
+            {!!m.endDate && (
               <span className="therapist-med-end-date">
                 until {new Date(m.endDate as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
@@ -226,7 +227,7 @@ export function TherapistMedications() {
         {isExpanded && (
           <div className="therapist-med-logs-panel">
             {/* Patient info from doctor */}
-            {m.patientInfo && (
+            {!!m.patientInfo && (
               <div className="therapist-med-patient-info-display">
                 <Info size={12} />
                 <span><strong>Patient guidance:</strong> {m.patientInfo as string}</span>
@@ -245,26 +246,7 @@ export function TherapistMedications() {
             ) : !logs || logs.length === 0 ? (
               <div className="therapist-med-logs-empty">No dose logs recorded yet</div>
             ) : (
-              <div className="therapist-med-logs-list">
-                {logs.slice(0, 20).map(log => (
-                  <div key={log.id} className={`therapist-dose-log-row log-${log.status}`}>
-                    <div className={`therapist-dose-log-dot ${log.status}`} />
-                    <div className="therapist-dose-log-info">
-                      <span className="therapist-dose-log-time">
-                        {new Date(log.scheduled_time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        {' '}
-                        {new Date(log.scheduled_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className={`therapist-dose-log-status ${log.status}`}>{log.status}</span>
-                      {log.notes && (
-                        <span className="therapist-dose-log-note">
-                          <Flame size={10} /> "{log.notes}"
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <DoseLogGrouped logs={logs} label="Patient dose history" maxDays={14} />
             )}
           </div>
         )}

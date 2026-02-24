@@ -28,6 +28,11 @@ import bookmarkRoutes from './routes/bookmarks';
 import journalRoutes from './routes/journal';
 import retentionRoutes from './routes/retention';
 import appointmentRoutes from './routes/appointments';
+import checkinRoutes from './routes/checkins';
+import treatmentPlanRoutes from './routes/treatmentPlans';
+import safetyPlanRoutes from './routes/safetyPlans';
+import clinicalFormulationRoutes from './routes/clinicalFormulations';
+import timelineRoutes from './routes/clinicalTimeline';
 import notificationRoutes from './routes/notifications';
 
 const app = express();
@@ -55,6 +60,11 @@ app.use('/api/bookmarks', authMiddleware, bookmarkRoutes);
 app.use('/api/journal', authMiddleware, journalRoutes);
 app.use('/api/retention', authMiddleware, retentionRoutes);
 app.use('/api/appointments', authMiddleware, appointmentRoutes);
+app.use('/api/checkins', authMiddleware, checkinRoutes);
+app.use('/api/treatment-plans', authMiddleware, treatmentPlanRoutes);
+app.use('/api/safety-plans', authMiddleware, safetyPlanRoutes);
+app.use('/api/formulations', authMiddleware, clinicalFormulationRoutes);
+app.use('/api/timeline', authMiddleware, timelineRoutes);
 app.use('/api/notifications', authMiddleware, notificationRoutes);
 
 const server = http.createServer(app);
@@ -68,10 +78,10 @@ function seedAdmin() {
     const defaultPassword = 'admin123';
     doctorRepo.create({
       email: ADMIN_EMAIL,
-      password_hash: hashPassword(defaultPassword),
+      passwordHash: hashPassword(defaultPassword),
       username: 'admin_sukoon',
-      display_name: 'Ayush Singh',
-      experience_years: 5,
+      displayName: 'Ayush Singh',
+      experienceYears: 5,
       qualifications: 'Platform Administrator',
       specializations: [],
     });
@@ -90,38 +100,38 @@ function sendWeeklySummaries() {
     const doctorPatientMap = new Map<string, Set<string>>();
     const recentPatientLogs = medLogRepo.getAllActivePatients();
 
-    for (const { patient_id, doctor_id } of recentPatientLogs) {
+    for (const { patientId, doctorId } of recentPatientLogs) {
       // Patient summary
-      const summary = medLogRepo.getPatientWeekSummary(patient_id);
+      const summary = medLogRepo.getPatientWeekSummary(patientId);
       if (summary.total === 0) continue;
       const adherencePct = Math.round((summary.taken / summary.total) * 100);
       const streakMsg = summary.taken === summary.total ? ' — perfect week!' : '';
 
       notificationRepo.create({
-        user_id: patient_id,
-        user_role: 'patient',
+        userId: patientId,
+        userRole: 'patient',
         type: 'weekly_summary',
         title: 'Your weekly medication summary',
         message: `This week: ${summary.taken}/${summary.total} doses taken (${adherencePct}%)${streakMsg}`,
-        reference_type: 'medication',
+        referenceType: 'medication',
       });
 
       // Doctor summary per patient
-      if (!doctorPatientMap.has(doctor_id)) doctorPatientMap.set(doctor_id, new Set());
-      doctorPatientMap.get(doctor_id)!.add(`${patient_id}:${adherencePct}`);
+      if (!doctorPatientMap.has(doctorId)) doctorPatientMap.set(doctorId, new Set());
+      doctorPatientMap.get(doctorId)!.add(`${patientId}:${adherencePct}`);
     }
 
     // Doctor digest
-    for (const [doctor_id, patientSet] of doctorPatientMap) {
+    for (const [doctorId, patientSet] of doctorPatientMap) {
       const lowAdherence = [...patientSet].filter(s => parseInt(s.split(':')[1]) < 70);
       if (lowAdherence.length > 0) {
         notificationRepo.create({
-          user_id: doctor_id,
-          user_role: 'doctor',
+          userId: doctorId,
+          userRole: 'doctor',
           type: 'weekly_adherence_report',
           title: 'Weekly adherence report',
           message: `${lowAdherence.length} patient(s) had adherence below 70% this week — review recommended`,
-          reference_type: 'medication',
+          referenceType: 'medication',
         });
       }
     }
@@ -139,33 +149,33 @@ function sendMedicationExpiryAlerts() {
   try {
     const endingSoon = medRepo.findEndingSoon(14);
     for (const med of endingSoon) {
-      const daysLeft = Math.ceil((new Date(med.end_date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.ceil((new Date(med.endDate!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       const alreadyAlerted = notificationRepo.hasRecentNotification(
-        med.doctor_id, 'medication_expiring', med.id, 23 // once per day
+        med.doctorId, 'medication_expiring', med.id, 23 // once per day
       );
       if (!alreadyAlerted) {
         notificationRepo.create({
-          user_id: med.doctor_id,
-          user_role: 'doctor',
+          userId: med.doctorId,
+          userRole: 'doctor',
           type: 'medication_expiring',
           title: 'Medication ending soon',
           message: `${med.name} (${med.dosage}) for a patient ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — consider renewal or adjustment`,
-          reference_id: med.id,
-          reference_type: 'medication',
+          referenceId: med.id,
+          referenceType: 'medication',
         });
         // Also notify patient
         const alreadyAlertedPatient = notificationRepo.hasRecentNotification(
-          med.patient_id, 'medication_expiring_patient', med.id, 23
+          med.patientId, 'medication_expiring_patient', med.id, 23
         );
         if (!alreadyAlertedPatient) {
           notificationRepo.create({
-            user_id: med.patient_id,
-            user_role: 'patient',
+            userId: med.patientId,
+            userRole: 'patient',
             type: 'medication_expiring_patient',
             title: 'Medication supply running low',
             message: `Your ${med.name} (${med.dosage}) course ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — speak with your doctor about renewal`,
-            reference_id: med.id,
-            reference_type: 'medication',
+            referenceId: med.id,
+            referenceType: 'medication',
           });
         }
       }

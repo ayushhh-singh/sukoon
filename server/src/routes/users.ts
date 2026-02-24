@@ -8,7 +8,7 @@ const router = Router();
 router.use(requireRole('patient'));
 
 function sanitize(user: userRepo.User) {
-  const { password_hash, ...safe } = user;
+  const { passwordHash, ...safe } = user;
   return safe;
 }
 
@@ -23,17 +23,17 @@ router.get('/me', (req: Request, res: Response) => {
 router.put('/me', (req: Request, res: Response) => {
   const { displayName, age, profession, primaryConcerns, therapyExperience, language, voicePreference, ambientSound, consentGiven, knownDisorders, currentMedications } = req.body;
   const updated = userRepo.update(req.user!.id, {
-    display_name: displayName,
+    displayName,
     age,
     profession,
-    primary_concerns: primaryConcerns,
-    therapy_experience: therapyExperience,
+    primaryConcerns,
+    therapyExperience,
     language,
-    voice_preference: voicePreference,
-    ambient_sound: ambientSound,
-    consent_given: consentGiven,
-    known_disorders: knownDisorders,
-    current_medications: currentMedications,
+    voicePreference,
+    ambientSound,
+    consentGiven,
+    knownDisorders,
+    currentMedications,
   });
   if (!updated) { res.status(404).json({ error: 'User not found' }); return; }
   res.json(sanitize(updated));
