@@ -13,6 +13,7 @@ interface PatientInfo {
   id: string;
   displayName: string;
   email: string;
+  phone: string | null;
   age: number | null;
   profession: string | null;
   primaryConcerns: string[];
@@ -102,6 +103,13 @@ export function TherapistPatientDetail({ patientId, patientName, patientInfo, on
             {patientInfo?.age ? ` · Age ${patientInfo.age}` : ''}
             {patientInfo?.profession ? ` · ${patientInfo.profession}` : ''}
           </p>
+          {(patientInfo?.email || patientInfo?.phone) && (
+            <p className="therapist-patient-meta" style={{ marginTop: '0.2rem' }}>
+              {patientInfo.email && <a href={`mailto:${patientInfo.email}`}>{patientInfo.email}</a>}
+              {patientInfo.email && patientInfo.phone && ' · '}
+              {patientInfo.phone && <a href={`tel:${patientInfo.phone}`}>{patientInfo.phone}</a>}
+            </p>
+          )}
           {patientInfo?.primaryConcerns && patientInfo.primaryConcerns.length > 0 && (
             <p className="therapist-patient-meta" style={{ marginTop: '0.2rem' }}>
               {patientInfo.primaryConcerns.join(', ')}
@@ -224,6 +232,13 @@ export function TherapistPatientDetail({ patientId, patientName, patientInfo, on
                   </ol>
                 </div>
               )}
+            </div>
+          )}
+
+          {!!latestSession?.treatmentPlanAlignment && (
+            <div className="therapist-detail-card treatment-alignment-card">
+              <h3><Target size={14} /> AI Session Alignment with Your Treatment Plan</h3>
+              <p className="therapist-clinical-value">{latestSession.treatmentPlanAlignment as string}</p>
             </div>
           )}
 
@@ -485,6 +500,13 @@ export function TherapistPatientDetail({ patientId, patientName, patientInfo, on
                             <div className="therapist-session-detail-row">
                               <span className="therapist-session-detail-label">Medical Context</span>
                               <p className="therapist-session-detail-value">{s.patientMedicalContext as string}</p>
+                            </div>
+                          )}
+
+                          {!!s.treatmentPlanAlignment && (
+                            <div className="therapist-session-detail-row treatment-alignment-card">
+                              <span className="therapist-session-detail-label">AI Session Alignment with Your Treatment Plan</span>
+                              <p className="therapist-session-detail-value">{s.treatmentPlanAlignment as string}</p>
                             </div>
                           )}
                         </div>

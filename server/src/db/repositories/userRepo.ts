@@ -8,6 +8,7 @@ export interface User {
   displayName: string;
   age: number | null;
   profession: string | null;
+  phone: string | null;
   primaryConcerns: string[];
   therapyExperience: 'none' | 'some' | 'regular';
   language: string;
@@ -97,6 +98,7 @@ export function update(id: string, data: Partial<Omit<User, 'id' | 'email' | 'pa
   if (data.voicePreference !== undefined) { fields.push('voicePreference = ?'); values.push(data.voicePreference); }
   if (data.ambientSound !== undefined) { fields.push('ambientSound = ?'); values.push(data.ambientSound); }
   if (data.consentGiven !== undefined) { fields.push('consentGiven = ?'); values.push(data.consentGiven); }
+  if (data.phone !== undefined) { fields.push('phone = ?'); values.push(data.phone); }
   if (data.knownDisorders !== undefined) { fields.push('knownDisorders = ?'); values.push(JSON.stringify(data.knownDisorders)); }
   if (data.currentMedications !== undefined) { fields.push('currentMedications = ?'); values.push(JSON.stringify(data.currentMedications)); }
 

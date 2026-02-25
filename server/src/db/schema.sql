@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   displayName TEXT NOT NULL,
   age INTEGER,
   profession TEXT,
+  phone TEXT,
   primaryConcerns TEXT DEFAULT '[]',
   therapyExperience TEXT DEFAULT 'none' CHECK(therapyExperience IN ('none','some','regular')),
   language TEXT DEFAULT 'English',
@@ -81,6 +82,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   familyHistory TEXT,
   patientMedicalContext TEXT,
   frequencyPatterns TEXT,
+  treatmentPlanAlignment TEXT,
 
   -- Mood snapshots
   preMoodValue INTEGER,

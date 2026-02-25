@@ -19,6 +19,10 @@ const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf-8');
 db.exec(schema);
 
+// Safe migrations for columns added after initial schema
+try { db.exec("ALTER TABLE users ADD COLUMN phone TEXT"); } catch { /* column already exists */ }
+try { db.exec("ALTER TABLE sessions ADD COLUMN treatmentPlanAlignment TEXT"); } catch { /* column already exists */ }
+
 console.log('[Sukoon] SQLite database initialized');
 
 export default db;

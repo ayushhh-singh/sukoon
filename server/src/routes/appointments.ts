@@ -4,6 +4,7 @@ import * as appointmentRepo from '../db/repositories/appointmentRepo';
 import * as doctorRepo from '../db/repositories/doctorRepo';
 import * as userRepo from '../db/repositories/userRepo';
 import * as notificationRepo from '../db/repositories/notificationRepo';
+import { emitToUser } from '../realtimeEvents';
 
 const router = Router();
 
@@ -54,6 +55,9 @@ router.post('/', requireRole('patient'), (req: Request, res: Response) => {
       referenceType: 'appointment',
     });
 
+    emitToUser(doctorId, { type: 'appointment:created', payload: appointment });
+    emitToUser(doctorId, { type: 'notification:new', payload: { type: 'appointment_request' } });
+
     res.status(201).json(appointment);
   } catch (error) {
     console.error('Create appointment error:', error);
@@ -82,6 +86,8 @@ router.put('/:id', (req: Request, res: Response) => {
         referenceId: appointment.id,
         referenceType: 'appointment',
       });
+      emitToUser(appointment.patientId, { type: 'appointment:updated', payload: updated });
+      emitToUser(appointment.patientId, { type: 'notification:new', payload: { type: `appointment_${req.body.status}` } });
     } else if (role === 'patient') {
       const patient = userRepo.findById(id);
       notificationRepo.create({
@@ -93,6 +99,8 @@ router.put('/:id', (req: Request, res: Response) => {
         referenceId: appointment.id,
         referenceType: 'appointment',
       });
+      emitToUser(appointment.doctorId, { type: 'appointment:updated', payload: updated });
+      emitToUser(appointment.doctorId, { type: 'notification:new', payload: { type: `appointment_${req.body.status}` } });
     }
   }
 
@@ -117,6 +125,8 @@ router.put('/:id/start', requireRole('doctor'), (req: Request, res: Response) =>
     referenceId: appointment.id,
     referenceType: 'appointment',
   });
+  emitToUser(appointment.patientId, { type: 'appointment:updated', payload: updated });
+  emitToUser(appointment.patientId, { type: 'notification:new', payload: { type: 'appointment_started' } });
 
   res.json(updated);
 });
@@ -139,6 +149,8 @@ router.put('/:id/complete', requireRole('doctor'), (req: Request, res: Response)
     referenceId: appointment.id,
     referenceType: 'appointment',
   });
+  emitToUser(appointment.patientId, { type: 'appointment:updated', payload: updated });
+  emitToUser(appointment.patientId, { type: 'notification:new', payload: { type: 'appointment_completed' } });
 
   res.json(updated);
 });
@@ -169,6 +181,8 @@ router.put('/:id/reschedule', (req: Request, res: Response) => {
       referenceId: appointment.id,
       referenceType: 'appointment',
     });
+    emitToUser(appointment.doctorId, { type: 'appointment:updated', payload: updated });
+    emitToUser(appointment.doctorId, { type: 'notification:new', payload: { type: 'appointment_rescheduled' } });
   } else {
     const doctor = doctorRepo.findById(id);
     notificationRepo.create({
@@ -180,6 +194,8 @@ router.put('/:id/reschedule', (req: Request, res: Response) => {
       referenceId: appointment.id,
       referenceType: 'appointment',
     });
+    emitToUser(appointment.patientId, { type: 'appointment:updated', payload: updated });
+    emitToUser(appointment.patientId, { type: 'notification:new', payload: { type: 'appointment_rescheduled' } });
   }
 
   res.json(updated);

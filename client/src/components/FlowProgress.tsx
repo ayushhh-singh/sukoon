@@ -2,6 +2,7 @@ import type { SessionPhase } from '../types';
 
 const FLOW_STEPS: { phase: SessionPhase; label: string }[] = [
   { phase: 'concern-select', label: 'Concerns' },
+  { phase: 'doctor-context', label: 'Doctor' },
   { phase: 'pre-mood', label: 'Mood' },
   { phase: 'pre-assessment', label: 'Assessment' },
   { phase: 'mode-select', label: 'Mode' },

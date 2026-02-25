@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, Check, X, User, Play, CheckCircle, RefreshCw, ClipboardCheck, ChevronDown, ChevronUp, FileText, Loader } from 'lucide-react';
 import { appointments as appointmentsApi, doctors as doctorsApi, checkins as checkinsApi } from '../../services/api';
+import { useRealtimeSubscription } from '../../contexts/RealtimeContext';
 
 interface PatientInfo {
   id: string;
@@ -82,6 +83,9 @@ export function TherapistAppointments({ onOpenSOAPNote }: { onOpenSOAPNote?: (ap
   }
 
   useEffect(() => { loadData(); }, []);
+
+  // Real-time: refetch when patient creates/reschedules appointments
+  useRealtimeSubscription('appointment:*', () => { loadData(); });
 
   async function handleAccept(id: string) {
     try {

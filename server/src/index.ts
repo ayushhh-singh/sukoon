@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import { setupWebSocket } from './websocket';
+import { setupEventWebSocket } from './realtimeEvents';
 
 // Initialize database (runs schema)
 import './db/database';
@@ -69,7 +70,25 @@ app.use('/api/notifications', authMiddleware, notificationRoutes);
 
 const server = http.createServer(app);
 
-setupWebSocket(server);
+const sessionWss = setupWebSocket(server);
+const eventWss = setupEventWebSocket(server);
+
+// Manual upgrade routing — required when multiple WebSocketServers share one HTTP server
+server.on('upgrade', (request, socket, head) => {
+  const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
+
+  if (pathname === '/ws') {
+    sessionWss.handleUpgrade(request, socket, head, (ws) => {
+      sessionWss.emit('connection', ws, request);
+    });
+  } else if (pathname === '/ws/events') {
+    eventWss.handleUpgrade(request, socket, head, (ws) => {
+      eventWss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 // Seed admin account if it doesn't exist
 function seedAdmin() {

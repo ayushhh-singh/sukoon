@@ -20,6 +20,9 @@ import { ThemeToggle } from '../ThemeToggle';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import { users as usersApi, doctors as doctorsApi } from '../../services/api';
 import { registerMedicationServiceWorker } from '../../utils/medicationReminders';
+import { RealtimeProvider } from '../../contexts/RealtimeContext';
+import { GuidedTour } from '../GuidedTour';
+import { patientTourSteps } from '../../data/tourSteps';
 import type { OnboardingData } from '../../types/session';
 
 type Tab = 'sessions' | 'history' | 'progress' | 'journal' | 'exercises' | 'appointments' | 'doctor-input' | 'awareness' | 'settings';
@@ -49,7 +52,7 @@ export function PatientApp() {
   });
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'sessions', label: 'New Session', icon: <MessageCircle size={18} /> },
+    { id: 'sessions', label: 'Talk to AI Psychologist', icon: <MessageCircle size={18} /> },
     { id: 'history', label: 'History', icon: <History size={18} /> },
     { id: 'progress', label: 'Progress', icon: <BarChart3 size={18} /> },
     { id: 'journal', label: 'Journal', icon: <BookOpen size={18} /> },
@@ -156,6 +159,10 @@ export function PatientApp() {
   }
 
   return (
+    <RealtimeProvider>
+    {!isSessionActive && (
+      <GuidedTour steps={patientTourSteps} storageKey={`tour_done_patient_${(user as Record<string, unknown>)?.id || 'anon'}`} />
+    )}
     <div className="patient-app">
       {/* Sidebar */}
       <aside className={`patient-sidebar ${isSessionActive || sidebarCollapsed ? 'patient-sidebar-collapsed' : ''}`}>
@@ -178,6 +185,7 @@ export function PatientApp() {
               key={tab.id}
               className={`patient-sidebar-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
+              data-tour={`tab-${tab.id}`}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -186,7 +194,7 @@ export function PatientApp() {
         </nav>
         <div className="patient-sidebar-footer">
           <ThemeToggle />
-          <NotificationBell onNavigate={(tab) => setActiveTab(tab as Tab)} />
+          <div data-tour="notification-bell" style={{ display: 'contents' }}><NotificationBell onNavigate={(tab) => setActiveTab(tab as Tab)} /></div>
           <button className="patient-sidebar-logout" onClick={logout}>
             <LogOut size={16} />
             <span>Sign Out</span>
@@ -246,5 +254,6 @@ export function PatientApp() {
         )}
       </main>
     </div>
+    </RealtimeProvider>
   );
 }

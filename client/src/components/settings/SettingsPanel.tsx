@@ -69,6 +69,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfile
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [profession, setProfession] = useState('');
+  const [phone, setPhone] = useState('');
   const [language, setLanguage] = useState('English');
   const [voice, setVoice] = useState<'female' | 'male'>('female');
   const [disorders, setDisorders] = useState<string[]>([]);
@@ -84,6 +85,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfile
           setName((user.displayName as string) || '');
           setAge(user.age ? String(user.age) : '');
           setProfession((user.profession as string) || '');
+          setPhone((user.phone as string) || '');
           setLanguage((user.language as string) || 'English');
           setVoice((user.voicePreference as 'female' | 'male') || 'female');
           setDisorders((user.knownDisorders as string[]) || []);
@@ -125,6 +127,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfile
         displayName: name.trim() || 'User',
         age: age ? parseInt(age, 10) : null,
         profession: profession.trim() || null,
+        phone: phone.trim() || null,
         language,
         voicePreference: voice,
         knownDisorders: disorders,
@@ -203,6 +206,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onProfile
                 onChange={e => setProfession(e.target.value)}
                 placeholder="Profession"
                 maxLength={50}
+              />
+            </div>
+            <div className="settings-field">
+              <label>Phone</label>
+              <input
+                type="tel"
+                className="settings-input"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Phone number (visible to your doctor)"
+                maxLength={20}
               />
             </div>
           </div>

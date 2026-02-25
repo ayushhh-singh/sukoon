@@ -10,6 +10,9 @@ import { TherapistProfile } from './TherapistProfile';
 import { SOAPNoteEditor } from './SOAPNoteEditor';
 import { NotificationBell } from '../NotificationBell';
 import { ThemeToggle } from '../ThemeToggle';
+import { RealtimeProvider } from '../../contexts/RealtimeContext';
+import { GuidedTour } from '../GuidedTour';
+import { therapistTourSteps } from '../../data/tourSteps';
 
 type Tab = 'dashboard' | 'patients' | 'appointments' | 'notes' | 'medications' | 'profile';
 
@@ -28,6 +31,8 @@ export function TherapistApp() {
   ];
 
   return (
+    <RealtimeProvider>
+    <GuidedTour steps={therapistTourSteps} storageKey={`tour_done_therapist_${(doctor as Record<string, unknown>)?.id || 'anon'}`} />
     <div className="therapist-app">
       <aside className="therapist-sidebar">
         <div className="therapist-sidebar-brand">
@@ -49,6 +54,7 @@ export function TherapistApp() {
               key={tab.id}
               className={`therapist-sidebar-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
+              data-tour={`tab-${tab.id}`}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -81,5 +87,6 @@ export function TherapistApp() {
         />
       )}
     </div>
+    </RealtimeProvider>
   );
 }

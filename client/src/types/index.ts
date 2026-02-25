@@ -8,6 +8,7 @@ export type SessionPhase =
   | 'profile-select'
   | 'onboarding'
   | 'concern-select'
+  | 'doctor-context'
   | 'prior-session'
   | 'pre-mood'
   | 'pre-assessment'

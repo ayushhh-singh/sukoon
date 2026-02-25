@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, Check, CheckCheck, FileText, Pill, Calendar, X, Trash2 } from 'lucide-react';
 import { notifications as notificationsApi } from '../services/api';
+import { useRealtimeSubscription } from '../contexts/RealtimeContext';
 
 interface Notification {
   id: string;
@@ -48,12 +49,16 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
     }
   }, []);
 
-  // Poll unread count every 30s
+  // Fetch unread count on mount
   useEffect(() => {
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
   }, [fetchUnreadCount]);
+
+  // Real-time: update instantly when a new notification arrives
+  useRealtimeSubscription('notification:new', () => {
+    fetchUnreadCount();
+    if (showPanel) fetchNotifications();
+  });
 
   // Close panel on outside click
   useEffect(() => {

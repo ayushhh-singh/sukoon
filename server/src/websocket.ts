@@ -53,8 +53,8 @@ interface Session {
 
 const activeSessions = new Map<string, Session>();
 
-export function setupWebSocket(server: http.Server): void {
-  const wss = new WebSocketServer({ server, path: '/ws' });
+export function setupWebSocket(_server: http.Server): WebSocketServer {
+  const wss = new WebSocketServer({ noServer: true });
 
   wss.on('connection', (clientWs: WebSocket, req: http.IncomingMessage) => {
     // Rate limiting: max concurrent sessions
@@ -124,6 +124,8 @@ export function setupWebSocket(server: http.Server): void {
   });
 
   console.log(`[${ts()}] [Sukoon] WebSocket server initialized on /ws`);
+
+  return wss;
 }
 
 function handleClientMessage(session: Session, data: Buffer | string): void {
@@ -133,12 +135,13 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
 
     switch (message.type) {
       case 'session.start':
-        log(session.id, u, `>> session.start (voice) | preferences: ${JSON.stringify(message.userPreferences?.preferredName || 'none')}`);
+        log(session.id, u, `>> session.start (voice) | preferences: ${JSON.stringify(message.userPreferences?.preferredName || 'none')} | doctorContext: ${message.doctorContext ? message.doctorContext.doctorName : 'none'}`);
         session.context = {
           assessmentContext: message.assessmentContext,
           userPreferences: message.userPreferences,
           priorSessionContext: message.priorSessionContext,
           prescribedMedications: message.prescribedMedications,
+          doctorContext: message.doctorContext,
         };
         connectToOpenAI(session);
         break;
@@ -187,13 +190,14 @@ function handleClientMessage(session: Session, data: Buffer | string): void {
         break;
 
       case 'chat.start':
-        log(session.id, u, `>> chat.start | preferences: ${JSON.stringify(message.userPreferences?.preferredName || 'none')}`);
+        log(session.id, u, `>> chat.start | preferences: ${JSON.stringify(message.userPreferences?.preferredName || 'none')} | doctorContext: ${message.doctorContext ? message.doctorContext.doctorName : 'none'}`);
         session.mode = 'chat';
         session.context = {
           assessmentContext: message.assessmentContext,
           userPreferences: message.userPreferences,
           priorSessionContext: message.priorSessionContext,
           prescribedMedications: message.prescribedMedications,
+          doctorContext: message.doctorContext,
         };
         startChatSession(session);
         break;
@@ -456,7 +460,12 @@ function performCrisisCheck(session: Session, transcript: string): void {
   }
 }
 
-function buildSummaryPrompt(): string {
+function buildSummaryPrompt(hasDoctorContext: boolean): string {
+  const treatmentAlignmentField = hasDoctorContext ? `
+  "treatmentPlanAlignment": "Narrative of how this session aligned with the treating doctor's treatment plan goals. Note progress, setbacks, or new insights relevant to the plan.",` : '';
+  const treatmentAlignmentGuideline = hasDoctorContext ? `
+- treatmentPlanAlignment: Evaluate how the session content aligns with the treating doctor's treatment plan goals. Note which goals were touched on, any progress or regression, new insights for the doctor, and whether the patient's self-reports are consistent with the treatment direction. This is specifically for the treating doctor's review.` : '';
+
   return `Generate a comprehensive JSON clinical summary of this therapy session. Respond ONLY with valid JSON, no markdown, no explanation. Format:
 {
   "keyTakeaways": ["insight 1", "insight 2"],
@@ -478,7 +487,7 @@ function buildSummaryPrompt(): string {
   "triggerPoints": ["trigger 1", "trigger 2"],
   "familyHistory": "Relevant family mental health history and dynamics disclosed during the session.",
   "patientMedicalContext": "Known conditions, medications, and medical context relevant to treatment.",
-  "frequencyPatterns": "Analysis of symptom frequency, intensity patterns, onset timing, and progression."
+  "frequencyPatterns": "Analysis of symptom frequency, intensity patterns, onset timing, and progression."${treatmentAlignmentField}
 }
 Field guidelines:
 - issuesIdentified: Key psychological concerns or life challenges the user raised (max 4)
@@ -495,7 +504,7 @@ Field guidelines:
 - triggerPoints: Specific triggers identified during the session — situations, people, thoughts, or sensations that activate symptoms (max 5)
 - familyHistory: Any family mental health history, intergenerational patterns, or family dynamics that were discussed. If not discussed, state "Family history was not explored in this session."
 - patientMedicalContext: Known disorders, current medications, and relevant medical information disclosed. If none discussed, state "No medical context discussed."
-- frequencyPatterns: How often symptoms occur, when they started, whether they are worsening or improving, cyclical patterns. If not assessed, state "Frequency patterns were not assessed in this session."
+- frequencyPatterns: How often symptoms occur, when they started, whether they are worsening or improving, cyclical patterns. If not assessed, state "Frequency patterns were not assessed in this session."${treatmentAlignmentGuideline}
 - Maximum 4 items per array field (except recommendedActions: max 5, triggerPoints: max 5). Base this ONLY on what was actually discussed. Be specific and actionable.
 
 CRITICAL: You MUST populate ALL fields — do NOT leave any empty. The clinical fields (clinicalImpression, preliminaryDiagnosis, recommendedActions, wayForward, rootCauseAnalysis) are the MOST IMPORTANT. This report will be shared with the patient's treating doctor to aid clinical decision-making, so it must be thorough and clinically useful.`;
@@ -511,7 +520,7 @@ function requestSummaryAndCleanup(session: Session): void {
       type: 'response.create',
       response: {
         modalities: ['text'],
-        instructions: buildSummaryPrompt(),
+        instructions: buildSummaryPrompt(!!session.context?.doctorContext),
       },
     }));
 
@@ -558,6 +567,7 @@ function handleSummaryResponse(session: Session, text: string): void {
         familyHistory: summary.familyHistory || '',
         patientMedicalContext: summary.patientMedicalContext || '',
         frequencyPatterns: summary.frequencyPatterns || '',
+        treatmentPlanAlignment: summary.treatmentPlanAlignment || '',
       };
 
       sendToClient(session.clientWs, {
@@ -594,6 +604,7 @@ function handleSummaryResponse(session: Session, text: string): void {
             familyHistory: summaryData.familyHistory,
             patientMedicalContext: summaryData.patientMedicalContext,
             frequencyPatterns: summaryData.frequencyPatterns,
+            treatmentPlanAlignment: summaryData.treatmentPlanAlignment,
             transcript: session.transcriptBuffer.map(t => ({ role: t.role, text: t.text })),
           });
           log(session.id, session.userLabel, 'Summary saved to database');
@@ -710,7 +721,7 @@ function requestChatSummaryAndCleanup(session: Session): void {
     ...session.chatHistory.slice(1),
     {
       role: 'user' as const,
-      content: `[SYSTEM INSTRUCTION — NOT FROM PATIENT] ${buildSummaryPrompt()}`,
+      content: `[SYSTEM INSTRUCTION — NOT FROM PATIENT] ${buildSummaryPrompt(!!session.context?.doctorContext)}`,
     },
   ];
 

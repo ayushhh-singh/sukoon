@@ -5,6 +5,7 @@ import { useAudioPlayback } from './useAudioPlayback';
 import { useAuth } from '../contexts/AuthContext';
 import { StorageService } from '../services/storage';
 import { moods as moodsApi, assessments as assessmentsApi, sessions as sessionsApi, medications as medsApi } from '../services/api';
+import type { DoctorContextSelection, FetchedDoctorContext } from '../components/patient/DoctorContextPicker';
 import { scoreAssessment } from '../utils/assessmentScoring';
 import { selectAssessmentForConcerns } from '../utils/assessmentMapping';
 import { PHQ9_CONFIG } from '../data/assessmentQuestions';
@@ -66,6 +67,10 @@ export function useSession() {
   // Prior session linker
   const [linkedPriorSession, setLinkedPriorSession] = useState<SessionSummary | null>(null);
   const [priorSessions, setPriorSessions] = useState<SessionSummary[]>([]);
+
+  // Doctor context for AI session
+  const [doctorContextSelection, setDoctorContextSelection] = useState<DoctorContextSelection | null>(null);
+  const [fetchedDoctorContext, setFetchedDoctorContext] = useState<FetchedDoctorContext | null>(null);
 
   const aiTranscriptBuffer = useRef('');
   const transcriptIdCounter = useRef(0);
@@ -202,7 +207,23 @@ export function useSession() {
   const completeSessionConcerns = useCallback(async (concerns: string[]) => {
     setSessionConcerns(concerns);
     setSelectedAssessment(selectAssessmentForConcerns(concerns));
-    // Fetch prior sessions from API
+    setPhase('doctor-context');
+  }, []);
+
+  const skipSessionConcerns = useCallback(async () => {
+    // Use user's primary concerns from auth profile as fallback
+    const userConcerns = (user?.primaryConcerns as string[]) || [];
+    if (userConcerns.length > 0) {
+      setSessionConcerns(userConcerns);
+      setSelectedAssessment(selectAssessmentForConcerns(userConcerns));
+    } else {
+      setSessionConcerns([]);
+    }
+    setPhase('doctor-context');
+  }, [user]);
+
+  // Doctor context selection (new phase between concerns and prior-session)
+  const proceedAfterDoctorContext = useCallback(async () => {
     try {
       const pastRaw = await sessionsApi.list();
       if (pastRaw.length > 0) {
@@ -217,28 +238,17 @@ export function useSession() {
     setPhase('pre-mood');
   }, []);
 
-  const skipSessionConcerns = useCallback(async () => {
-    // Use user's primary concerns from auth profile as fallback
-    const userConcerns = (user?.primaryConcerns as string[]) || [];
-    if (userConcerns.length > 0) {
-      setSessionConcerns(userConcerns);
-      setSelectedAssessment(selectAssessmentForConcerns(userConcerns));
-    } else {
-      setSessionConcerns([]);
-    }
-    try {
-      const pastRaw = await sessionsApi.list();
-      if (pastRaw.length > 0) {
-        const past = pastRaw.map(normalizeSummary);
-        setPriorSessions(past);
-        setPhase('prior-session');
-        return;
-      }
-    } catch {
-      // ignore
-    }
-    setPhase('pre-mood');
-  }, [user]);
+  const selectDoctorContext = useCallback((selection: DoctorContextSelection, fetched: FetchedDoctorContext) => {
+    setDoctorContextSelection(selection);
+    setFetchedDoctorContext(fetched);
+    proceedAfterDoctorContext();
+  }, [proceedAfterDoctorContext]);
+
+  const skipDoctorContext = useCallback(() => {
+    setDoctorContextSelection(null);
+    setFetchedDoctorContext(null);
+    proceedAfterDoctorContext();
+  }, [proceedAfterDoctorContext]);
 
   const selectPriorSession = useCallback((session: SessionSummary) => {
     setLinkedPriorSession(session);
@@ -358,8 +368,9 @@ export function useSession() {
       userPreferences: Object.keys(userPrefs).length > 0 ? userPrefs : undefined,
       priorSessionContext: priorCtx,
       prescribedMedications: prescribedMedsRef.current.length > 0 ? prescribedMedsRef.current : undefined,
+      doctorContext: fetchedDoctorContext || undefined,
     };
-  }, [preAssessmentResult, user, sessionConcerns, sessionGoal, linkedPriorSession]);
+  }, [preAssessmentResult, user, sessionConcerns, sessionGoal, linkedPriorSession, fetchedDoctorContext]);
 
   const startSession = useCallback(async () => {
     const t = () => new Date().toISOString();
@@ -499,6 +510,8 @@ export function useSession() {
     setSessionMode('voice');
     setLinkedPriorSession(null);
     setPriorSessions([]);
+    setDoctorContextSelection(null);
+    setFetchedDoctorContext(null);
     summaryDataRef.current = undefined;
     sessionIdRef.current = `session-${Date.now()}`;
     setPhase('concern-select');
@@ -554,14 +567,17 @@ export function useSession() {
       case 'concern-select':
         // Already at start for authenticated patients
         break;
-      case 'prior-session':
+      case 'doctor-context':
         setPhase('concern-select');
+        break;
+      case 'prior-session':
+        setPhase('doctor-context');
         break;
       case 'pre-mood':
         if (priorSessions.length > 0) {
           setPhase('prior-session');
         } else {
-          setPhase('concern-select');
+          setPhase('doctor-context');
         }
         break;
       case 'pre-assessment':
@@ -600,6 +616,9 @@ export function useSession() {
     goBack, refreshProfile,
 
     priorSessions, selectPriorSession, skipPriorSession,
+
+    // Doctor context
+    doctorContextSelection, selectDoctorContext, skipDoctorContext,
 
     completeSessionConcerns, skipSessionConcerns,
     selectPreMood, completePreAssessment, skipPreAssessment, confirmPreAssessmentResults,

@@ -95,21 +95,47 @@ router.delete('/link/:doctorId', requireRole('patient'), (req: Request, res: Res
   res.json({ success: true });
 });
 
-// GET /api/doctors/:id — any authenticated user
+// GET /api/doctors/:id — any authenticated user (linked patients get full profile)
 router.get('/:id', (req: Request, res: Response) => {
   const doctor = doctorRepo.findById(req.params.id as string);
   if (!doctor) { res.status(404).json({ error: 'Doctor not found' }); return; }
-  res.json({
-    id: doctor.id,
-    username: doctor.username,
-    displayName: doctor.displayName,
-    specializations: doctor.specializations,
-    experienceYears: doctor.experienceYears,
-    qualifications: doctor.qualifications,
-    bio: doctor.bio,
-    clinicName: doctor.clinicName,
-    acceptingPatients: doctor.acceptingPatients,
-  });
+
+  // Check if requester is a linked patient — show full profile
+  const { id, role } = req.user!;
+  let isLinked = false;
+  if (role === 'patient') {
+    const linkedDoctorIds = doctorRepo.getLinkedDoctorIds(id);
+    isLinked = linkedDoctorIds.includes(req.params.id as string);
+  }
+
+  if (isLinked || role === 'doctor' || role === 'admin') {
+    res.json({
+      id: doctor.id,
+      username: doctor.username,
+      displayName: doctor.displayName,
+      email: doctor.email,
+      phone: doctor.phone,
+      specializations: doctor.specializations,
+      experienceYears: doctor.experienceYears,
+      qualifications: doctor.qualifications,
+      bio: doctor.bio,
+      clinicName: doctor.clinicName,
+      clinicAddress: doctor.clinicAddress,
+      acceptingPatients: doctor.acceptingPatients,
+    });
+  } else {
+    res.json({
+      id: doctor.id,
+      username: doctor.username,
+      displayName: doctor.displayName,
+      specializations: doctor.specializations,
+      experienceYears: doctor.experienceYears,
+      qualifications: doctor.qualifications,
+      bio: doctor.bio,
+      clinicName: doctor.clinicName,
+      acceptingPatients: doctor.acceptingPatients,
+    });
+  }
 });
 
 export default router;

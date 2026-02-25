@@ -13,6 +13,31 @@ export interface PrescribedMedication {
   patientInfo?: string | null;
 }
 
+export interface DoctorContextData {
+  doctorId: string;
+  doctorName: string;
+  notes: Array<{ title: string; content: string; noteType: string; createdAt: string }>;
+  medications: Array<{ name: string; dosage: string; frequency: string; adherencePct: number | null }>;
+  treatmentPlan: {
+    title: string;
+    diagnosis: string;
+    goals: Array<{ title: string; interventions: string[]; progress: number }>;
+  } | null;
+  safetyPlan: {
+    warningSigns: string[];
+    copingStrategies: string[];
+    reasonsForLiving: string[];
+  } | null;
+  formulation: {
+    presentingProblems: string[];
+    predisposingFactors: string[];
+    precipitatingFactors: string[];
+    perpetuatingFactors: string[];
+    protectiveFactors: string[];
+    formulationSummary: string;
+  } | null;
+}
+
 export interface SessionContext {
   assessmentContext?: {
     phq9Score?: number;
@@ -43,6 +68,7 @@ export interface SessionContext {
     preliminaryDiagnosis?: string;
   };
   prescribedMedications?: PrescribedMedication[];
+  doctorContext?: DoctorContextData;
 }
 
 // ---- Base Persona ----
@@ -374,6 +400,72 @@ function buildPrescribedMedicationsContext(meds: PrescribedMedication[]): string
   return prompt;
 }
 
+// ---- Doctor's Clinical Context ----
+function buildDoctorContextPrompt(ctx: DoctorContextData): string {
+  let prompt = `\n## Treating Doctor's Clinical Input\nDr. ${ctx.doctorName} is this patient's treating therapist. Below is their clinical documentation. Use this to ALIGN your therapeutic approach with the doctor's treatment plan. Do NOT read this aloud. Integrate it naturally into your clinical reasoning.\n`;
+
+  // Treatment Plan
+  if (ctx.treatmentPlan) {
+    const tp = ctx.treatmentPlan;
+    prompt += `\n### Treatment Plan: ${tp.title}\n`;
+    if (tp.diagnosis) prompt += `Diagnosis: ${tp.diagnosis}\n`;
+    if (tp.goals && tp.goals.length > 0) {
+      prompt += 'Goals:\n';
+      for (const goal of tp.goals) {
+        prompt += `- **${goal.title}** (progress: ${goal.progress}%)`;
+        if (goal.interventions && goal.interventions.length > 0) {
+          prompt += ` — Interventions: ${goal.interventions.join(', ')}`;
+        }
+        prompt += '\n';
+      }
+    }
+  }
+
+  // Clinical Formulation (5Ps)
+  if (ctx.formulation) {
+    const f = ctx.formulation;
+    prompt += '\n### Clinical Formulation (5Ps)\n';
+    if (f.presentingProblems?.length > 0) prompt += `Presenting Problems: ${f.presentingProblems.join('; ')}\n`;
+    if (f.predisposingFactors?.length > 0) prompt += `Predisposing Factors: ${f.predisposingFactors.join('; ')}\n`;
+    if (f.precipitatingFactors?.length > 0) prompt += `Precipitating Factors: ${f.precipitatingFactors.join('; ')}\n`;
+    if (f.perpetuatingFactors?.length > 0) prompt += `Perpetuating Factors: ${f.perpetuatingFactors.join('; ')}\n`;
+    if (f.protectiveFactors?.length > 0) prompt += `Protective Factors: ${f.protectiveFactors.join('; ')}\n`;
+    if (f.formulationSummary) prompt += `Summary: ${f.formulationSummary}\n`;
+  }
+
+  // Safety Plan
+  if (ctx.safetyPlan) {
+    const sp = ctx.safetyPlan;
+    prompt += '\n### Safety Plan\n';
+    if (sp.warningSigns?.length > 0) prompt += `Warning Signs: ${sp.warningSigns.join('; ')}\n`;
+    if (sp.copingStrategies?.length > 0) prompt += `Coping Strategies: ${sp.copingStrategies.join('; ')}\n`;
+    if (sp.reasonsForLiving?.length > 0) prompt += `Reasons for Living: ${sp.reasonsForLiving.join('; ')}\n`;
+  }
+
+  // Doctor's Notes (most recent)
+  if (ctx.notes && ctx.notes.length > 0) {
+    prompt += '\n### Doctor\'s Notes (most recent)\n';
+    for (const note of ctx.notes.slice(0, 5)) {
+      const date = new Date(note.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      prompt += `- [${date}] ${note.title || 'Untitled'} (${note.noteType}): ${note.content.substring(0, 300)}${note.content.length > 300 ? '...' : ''}\n`;
+    }
+  }
+
+  // Medications from this doctor (separate from prescribed meds context which covers all doctors)
+  if (ctx.medications && ctx.medications.length > 0) {
+    prompt += '\n### Medications from Dr. ' + ctx.doctorName + '\n';
+    for (const med of ctx.medications) {
+      prompt += `- ${med.name} (${med.dosage}, ${med.frequency})`;
+      if (med.adherencePct !== null) prompt += ` — adherence: ${med.adherencePct}%`;
+      prompt += '\n';
+    }
+  }
+
+  prompt += `\nIMPORTANT: Work WITHIN the doctor's treatment framework. If the patient raises topics that align with treatment goals, prioritize those. Reference progress on treatment goals naturally. If safety concerns arise, follow the safety plan elements above. Do NOT contradict or undermine the treating doctor's approach.\n`;
+
+  return prompt;
+}
+
 // ---- Chat Mode Addendum ----
 const CHAT_MODE_ADDENDUM = `
 
@@ -413,6 +505,10 @@ export function buildSystemPrompt(context?: SessionContext, mode: 'voice' | 'cha
 
   if (context?.prescribedMedications && context.prescribedMedications.length > 0) {
     sections.push(buildPrescribedMedicationsContext(context.prescribedMedications));
+  }
+
+  if (context?.doctorContext) {
+    sections.push(buildDoctorContextPrompt(context.doctorContext));
   }
 
   sections.push(CRISIS_PROTOCOL, BOUNDARIES);

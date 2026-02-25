@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Pill, CheckCircle, XCircle, ChevronDown, ChevronUp, Flame } from 'lucide-react';
 import { medications as medsApi } from '../../services/api';
-import { cancelMedReminderInSW, closeAllMedNotificationsInSW } from '../../utils/medicationReminders';
+import { cancelMedReminderInSW, closeAllMedNotificationsInSW, postMedicationsToSW } from '../../utils/medicationReminders';
+import { useRealtimeSubscription } from '../../contexts/RealtimeContext';
 
 interface Medication {
   id: string;
@@ -105,6 +106,9 @@ export function TodaysDosesCard({ onNavigateToDoctorInput }: Props) {
   }, [buildSlots]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Real-time: refetch when medications change (doctor prescribes, updates, etc.)
+  useRealtimeSubscription('medication:*', () => { load(); });
 
   /** Build an ISO timestamp for a dose slot time (e.g. "08:00") today */
   function slotToISO(timeStr: string): string {

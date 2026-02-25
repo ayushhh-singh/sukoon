@@ -28,6 +28,7 @@ export interface Session {
   familyHistory: string | null;
   patientMedicalContext: string | null;
   frequencyPatterns: string | null;
+  treatmentPlanAlignment: string | null;
   preMoodValue: number | null;
   preMoodLabel: string | null;
   preMoodEmoji: string | null;
@@ -123,6 +124,7 @@ export interface CreateSessionInput {
   familyHistory?: string;
   patientMedicalContext?: string;
   frequencyPatterns?: string;
+  treatmentPlanAlignment?: string;
   preMoodValue?: number;
   preMoodLabel?: string;
   preMoodEmoji?: string;
@@ -145,11 +147,12 @@ export function create(data: CreateSessionInput): Session {
       riskLevel, suggestedFocusAreas, techniquesUsed, clinicalImpression,
       preliminaryDiagnosis, recommendedActions, wayForward,
       rootCauseAnalysis, triggerPoints, familyHistory, patientMedicalContext, frequencyPatterns,
+      treatmentPlanAlignment,
       preMoodValue, preMoodLabel, preMoodEmoji,
       postMoodValue, postMoodLabel, postMoodEmoji,
       preAssessmentType, preAssessmentScore, preAssessmentSeverity,
       transcript
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, data.sessionId, data.userId, data.date, data.duration, data.mode ?? null,
     JSON.stringify(data.keyTakeaways || []),
@@ -172,6 +175,7 @@ export function create(data: CreateSessionInput): Session {
     data.familyHistory ?? null,
     data.patientMedicalContext ?? null,
     data.frequencyPatterns ?? null,
+    data.treatmentPlanAlignment ?? null,
     data.preMoodValue ?? null,
     data.preMoodLabel ?? null,
     data.preMoodEmoji ?? null,
@@ -195,7 +199,7 @@ export function updateSummary(sessionId: string, summary: Record<string, unknown
   const values: unknown[] = [];
 
   const jsonArrayFields = ['keyTakeaways', 'copingStrategies', 'homeworkAssignments', 'topicsDiscussed', 'emotionalThemes', 'issuesIdentified', 'suggestedFocusAreas', 'techniquesUsed', 'recommendedActions', 'triggerPoints'];
-  const stringFields = ['conversationAssessment', 'emotionalJourney', 'riskLevel', 'clinicalImpression', 'preliminaryDiagnosis', 'wayForward', 'rootCauseAnalysis', 'familyHistory', 'patientMedicalContext', 'frequencyPatterns'];
+  const stringFields = ['conversationAssessment', 'emotionalJourney', 'riskLevel', 'clinicalImpression', 'preliminaryDiagnosis', 'wayForward', 'rootCauseAnalysis', 'familyHistory', 'patientMedicalContext', 'frequencyPatterns', 'treatmentPlanAlignment'];
 
   for (const f of jsonArrayFields) {
     if (summary[f] !== undefined) {

@@ -12,6 +12,7 @@ const STREAK_MILESTONES: Record<number, { emoji: string; title: string; message:
 };
 import { notes as notesApi, medications as medsApi, doctors as doctorsApi } from '../../services/api';
 import { getNextDoseTime, getRefillCountdown, postMedicationsToSW, cancelMedReminderInSW, closeAllMedNotificationsInSW } from '../../utils/medicationReminders';
+import { useRealtimeSubscription } from '../../contexts/RealtimeContext';
 import { DoseLogGrouped } from '../DoseLogGrouped';
 
 interface DoctorNote {
@@ -167,6 +168,10 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
   }, [subTab]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Real-time: refetch when doctor changes medications or notes
+  useRealtimeSubscription('medication:*', () => { loadData(); });
+  useRealtimeSubscription('note:*', () => { loadData(); });
 
   // Auto-log dose triggered from notification "Took it" action
   useEffect(() => {
@@ -343,6 +348,11 @@ export function PatientDoctorInput({ pendingAutoLog, onAutoLogComplete }: Patien
   async function handleSetDoseTimes(medId: string, times: string[]) {
     try {
       await medsApi.update(medId, { doseTimes: times });
+      // Immediately push updated schedule to Service Worker so reminders start now
+      const med = medsList.find(m => m.id === medId);
+      if (med && times.length > 0) {
+        postMedicationsToSW([{ id: medId, name: med.name, dosage: med.dosage, frequency: med.frequency, doseTimes: times }]);
+      }
       loadData();
     } catch {
       // ignore

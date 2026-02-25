@@ -16459,3 +16459,298 @@
   background: white;
   border-color: #e5e7eb;
 }
+
+/* ---- Treatment Plan Alignment Card ---- */
+.treatment-alignment-card {
+  border-left: 3px solid var(--accent);
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.06);
+}
+
+:root:not([data-theme="dark"]) .treatment-alignment-card {
+  background: rgba(99, 102, 241, 0.05);
+  border-left-color: var(--accent);
+}
+
+/* ---- Doctor Context Picker ---- */
+.doctor-context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.doctor-context-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+}
+
+.doctor-context-card:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.doctor-context-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+}
+
+.doctor-context-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.doctor-context-card-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.doctor-context-card-spec {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.doctor-context-card-exp {
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.doctor-context-card-arrow {
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.doctor-context-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  opacity: 0.7;
+}
+
+/* Doctor context banner */
+.dc-doctor-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 0.25rem;
+}
+
+.dc-doctor-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.dc-doctor-banner-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dc-doctor-banner-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.dc-doctor-banner-meta {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.dc-selected-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+}
+
+/* Toggle card grid */
+.dc-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* Last item spans full width when odd count */
+.dc-toggle-grid > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  max-width: 50%;
+  justify-self: center;
+}
+
+.dc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  color: inherit;
+  position: relative;
+}
+
+.dc-card:hover:not(.dc-card-disabled) {
+  background: rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+
+.dc-card-active {
+  border-color: var(--dc-color, var(--accent));
+  background: color-mix(in srgb, var(--dc-color, var(--accent)) 8%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dc-color, var(--accent)) 20%, transparent);
+}
+
+.dc-card-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dc-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dc-color, var(--accent));
+  transition: all 0.2s ease;
+}
+
+.dc-card-active .dc-card-icon {
+  background: var(--dc-color, var(--accent));
+  color: white;
+}
+
+.dc-card-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.dc-card-check-on {
+  background: var(--dc-color, var(--accent));
+  border-color: var(--dc-color, var(--accent));
+  color: white;
+}
+
+.dc-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dc-card-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.dc-card-desc {
+  font-size: 0.72rem;
+  opacity: 0.55;
+  line-height: 1.3;
+}
+
+.doctor-context-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 480px;
+  margin-top: 0.5rem;
+}
+
+.skip-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
+.skip-btn:hover {
+  opacity: 1;
+}
+
+:root:not([data-theme="dark"]) .doctor-context-card {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+:root:not([data-theme="dark"]) .dc-doctor-banner {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+:root:not([data-theme="dark"]) .dc-card {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+:root:not([data-theme="dark"]) .dc-card-active {
+  background: color-mix(in srgb, var(--dc-color, var(--accent)) 6%, white);
+  border-color: var(--dc-color, var(--accent));
+}
+
+:root:not([data-theme="dark"]) .dc-card-icon {
+  background: #f0f0f0;
+}
+
+:root:not([data-theme="dark"]) .dc-card-check {
+  border-color: #d1d5db;
+}

@@ -21,11 +21,12 @@ router.get('/me', (req: Request, res: Response) => {
 
 // PUT /api/users/me
 router.put('/me', (req: Request, res: Response) => {
-  const { displayName, age, profession, primaryConcerns, therapyExperience, language, voicePreference, ambientSound, consentGiven, knownDisorders, currentMedications } = req.body;
+  const { displayName, age, profession, phone, primaryConcerns, therapyExperience, language, voicePreference, ambientSound, consentGiven, knownDisorders, currentMedications } = req.body;
   const updated = userRepo.update(req.user!.id, {
     displayName,
     age,
     profession,
+    phone,
     primaryConcerns,
     therapyExperience,
     language,

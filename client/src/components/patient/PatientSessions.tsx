@@ -33,6 +33,7 @@ import { MindfulWalking } from '../exercises/MindfulWalking';
 import { FlowProgress } from '../FlowProgress';
 import { DailyCheckIn } from '../DailyCheckIn';
 import { PriorSessionPicker } from '../PriorSessionPicker';
+import { DoctorContextPicker } from './DoctorContextPicker';
 import { Volume2 } from 'lucide-react';
 import type { AmbientSound } from '../../types/session';
 
@@ -96,7 +97,7 @@ export function PatientSessions({ session, onSessionActive, onSessionInactive }:
   return (
     <>
       {/* Flow progress indicator for pre-session steps */}
-      {['concern-select', 'pre-mood', 'pre-assessment', 'mode-select'].includes(effectivePhase) && (
+      {['concern-select', 'doctor-context', 'pre-mood', 'pre-assessment', 'mode-select'].includes(effectivePhase) && (
         <FlowProgress currentPhase={effectivePhase} />
       )}
 
@@ -106,6 +107,15 @@ export function PatientSessions({ session, onSessionActive, onSessionInactive }:
           name={patientName}
           onComplete={session.completeSessionConcerns}
           onSkip={session.skipSessionConcerns}
+        />
+      )}
+
+      {/* Phase: Doctor Context Picker */}
+      {effectivePhase === 'doctor-context' && (
+        <DoctorContextPicker
+          onSelect={session.selectDoctorContext}
+          onSkip={session.skipDoctorContext}
+          onBack={session.goBack}
         />
       )}
 

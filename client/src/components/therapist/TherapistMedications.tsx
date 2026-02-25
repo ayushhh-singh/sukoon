@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, ChevronDown, ChevronUp, User, CheckCircle, XCircle, AlertTriangle, Clock, FileText, Info } from 'lucide-react';
 import { medications as medsApi, doctors as doctorsApi } from '../../services/api';
+import { useRealtimeSubscription } from '../../contexts/RealtimeContext';
 import { MedicationEditor } from './MedicationEditor';
 import { DoseLogGrouped } from '../DoseLogGrouped';
 
@@ -66,6 +67,10 @@ export function TherapistMedications() {
   }
 
   useEffect(() => { loadData(); }, [filterPatient]);
+
+  // Real-time: refetch when patient updates dose times or logs a dose
+  useRealtimeSubscription('medication:*', () => { loadData(); });
+  useRealtimeSubscription('doselog:created', () => { loadData(); });
 
   // Load recent logs when a med is expanded
   useEffect(() => {

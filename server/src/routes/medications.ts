@@ -4,6 +4,7 @@ import * as medRepo from '../db/repositories/medicationRepo';
 import * as medLogRepo from '../db/repositories/medicationLogRepo';
 import * as doctorRepo from '../db/repositories/doctorRepo';
 import * as notificationRepo from '../db/repositories/notificationRepo';
+import { emitToUser } from '../realtimeEvents';
 
 const router = Router();
 
@@ -60,6 +61,9 @@ router.post('/', requireRole('doctor'), (req: Request, res: Response) => {
       referenceType: 'medication',
     });
 
+    emitToUser(patientId, { type: 'medication:created', payload: med });
+    emitToUser(patientId, { type: 'notification:new', payload: { type: 'medication_prescribed' } });
+
     res.status(201).json(med);
   } catch (error) {
     console.error('Create medication error:', error);
@@ -81,6 +85,7 @@ router.put('/:id', (req: Request, res: Response) => {
   // Patient can only update patientStartTime and doseTimes
   if (role === 'patient') {
     const updated = medRepo.update(req.params.id as string, { patientStartTime, doseTimes });
+    emitToUser(med.patientId, { type: 'medication:updated', payload: updated });
     res.json(updated);
     return;
   }
@@ -98,8 +103,10 @@ router.put('/:id', (req: Request, res: Response) => {
       referenceId: med.id,
       referenceType: 'medication',
     });
+    emitToUser(med.patientId, { type: 'notification:new', payload: { type: 'medication_updated' } });
   }
 
+  emitToUser(med.patientId, { type: 'medication:updated', payload: updated });
   res.json(updated);
 });
 
@@ -109,6 +116,7 @@ router.delete('/:id', requireRole('doctor'), (req: Request, res: Response) => {
   if (!med) { res.status(404).json({ error: 'Medication not found' }); return; }
   if (med.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
   medRepo.remove(req.params.id as string);
+  emitToUser(med.patientId, { type: 'medication:deleted', payload: { id: med.id } });
   res.json({ success: true });
 });
 
@@ -166,8 +174,10 @@ router.post('/:id/logs', requireRole('patient'), (req: Request, res: Response) =
         referenceId: med.id,
         referenceType: 'medication',
       });
+      emitToUser(med.doctorId, { type: 'notification:new', payload: { type: 'dose_skipped' } });
     }
 
+    emitToUser(med.doctorId, { type: 'doselog:created', payload: { medicationId: med.id, status, patientId: med.patientId } });
     res.status(201).json(log);
   } catch (error) {
     console.error('Create dose log error:', error);

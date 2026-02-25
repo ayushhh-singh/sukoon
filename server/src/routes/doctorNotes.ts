@@ -3,6 +3,7 @@ import { requireRole } from '../middleware/auth';
 import * as noteRepo from '../db/repositories/doctorNoteRepo';
 import * as doctorRepo from '../db/repositories/doctorRepo';
 import * as notificationRepo from '../db/repositories/notificationRepo';
+import { emitToUser } from '../realtimeEvents';
 
 const router = Router();
 
@@ -66,6 +67,9 @@ router.post('/', requireRole('doctor'), (req: Request, res: Response) => {
       referenceType: 'note',
     });
 
+    emitToUser(patientId, { type: 'note:created', payload: note });
+    emitToUser(patientId, { type: 'notification:new', payload: { type: 'note_added' } });
+
     res.status(201).json(note);
   } catch (error) {
     console.error('Create note error:', error);
@@ -81,6 +85,7 @@ router.put('/:id', requireRole('doctor'), (req: Request, res: Response) => {
 
   const { title, content, tags, noteType, subjective, objective, assessmentText, planText } = req.body;
   const updated = noteRepo.update(req.params.id as string, { title, content, tags, noteType, subjective, objective, assessmentText, planText });
+  emitToUser(note.patientId, { type: 'note:updated', payload: updated });
   res.json(updated);
 });
 
@@ -91,6 +96,7 @@ router.delete('/:id', requireRole('doctor'), (req: Request, res: Response) => {
   if (note.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
 
   noteRepo.remove(req.params.id as string);
+  emitToUser(note.patientId, { type: 'note:deleted', payload: { id: note.id } });
   res.json({ success: true });
 });
 

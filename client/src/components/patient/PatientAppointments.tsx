@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, User, X, ClipboardCheck, RefreshCw, Loader } from 'lucide-react';
 import { doctors as doctorsApi, appointments as appointmentsApi, checkins as checkinsApi } from '../../services/api';
+import { useRealtimeSubscription } from '../../contexts/RealtimeContext';
 import { AppointmentCheckinForm } from './AppointmentCheckinForm';
 
 interface LinkedDoctor {
@@ -40,6 +41,9 @@ export function PatientAppointments() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Real-time: refetch when doctor updates appointment status
+  useRealtimeSubscription('appointment:*', () => { loadData(); });
 
   async function loadData() {
     setLoading(true);
