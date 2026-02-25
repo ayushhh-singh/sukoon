@@ -87,12 +87,12 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ onClose, i
     );
   }
 
-  const rawStreak = retentionData?.streak as Record<string, unknown> | undefined;
-  const streak: StreakData | undefined = rawStreak ? {
-    currentStreak: (rawStreak.currentStreak ?? 0) as number,
-    longestStreak: (rawStreak.longestStreak ?? 0) as number,
-    lastSessionDate: (rawStreak.lastSessionDate ?? '') as string,
-  } : undefined;
+  // API returns flat fields (currentStreak, longestStreak, lastSessionDate) not nested under .streak
+  const streak: StreakData = {
+    currentStreak: (retentionData?.currentStreak as number) ?? 0,
+    longestStreak: (retentionData?.longestStreak as number) ?? 0,
+    lastSessionDate: (retentionData?.lastSessionDate as string) ?? '',
+  };
   const milestones = (retentionData?.milestones || {}) as Record<string, string | null>;
   const schedule = (retentionData?.schedule || []) as ScheduleEntry[];
 
@@ -108,7 +108,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ onClose, i
         </div>
       </div>
 
-      {streak && <StreakCard streak={streak} />}
+      <StreakCard streak={streak} />
 
       {/* Mood Trend */}
       {moodTrend.length > 1 && (

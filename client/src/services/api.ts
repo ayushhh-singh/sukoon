@@ -85,6 +85,7 @@ export const sessions = {
   get: (id: string) => request<Record<string, unknown>>(`/api/sessions/${id}`),
   create: (data: Record<string, unknown>) => request<Record<string, unknown>>('/api/sessions', { method: 'POST', body: JSON.stringify(data) }),
   updateReflection: (id: string, reflection: string) => request<{ success: boolean }>(`/api/sessions/${id}/reflection`, { method: 'PUT', body: JSON.stringify({ reflection }) }),
+  updatePostMood: (sessionId: string, mood: { value: number; label: string; emoji: string }) => request<{ success: boolean }>(`/api/sessions/${sessionId}/post-mood`, { method: 'PUT', body: JSON.stringify(mood) }),
 };
 
 // Assessments

@@ -5,7 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import { setupWebSocket } from './websocket';
-import { setupEventWebSocket } from './realtimeEvents';
+import { setupEventWebSocket, emitToUser } from './realtimeEvents';
 
 // Initialize database (runs schema)
 import './db/database';
@@ -25,6 +25,7 @@ import medicationRoutes from './routes/medications';
 import * as medRepo from './db/repositories/medicationRepo';
 import * as medLogRepo from './db/repositories/medicationLogRepo';
 import * as notificationRepo from './db/repositories/notificationRepo';
+import * as retentionRepo from './db/repositories/retentionRepo';
 import bookmarkRoutes from './routes/bookmarks';
 import journalRoutes from './routes/journal';
 import retentionRoutes from './routes/retention';
@@ -206,6 +207,60 @@ function sendMedicationExpiryAlerts() {
     console.error('[Sukoon] Expiry alert error:', err);
   }
 }
+
+// Session reminder check — runs every 15 minutes
+function sendSessionReminders() {
+  try {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0=Sun, 1=Mon, ...
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    const allRetention = retentionRepo.findAllWithSchedules();
+
+    for (const ret of allRetention) {
+      const matchingEntry = ret.schedule.find(entry => {
+        if (!entry.enabled || entry.dayOfWeek !== currentDay) return false;
+        const [h, m] = entry.time.split(':').map(Number);
+        // Match if within a 15-minute window
+        const entryMinutes = h * 60 + m;
+        const nowMinutes = currentHour * 60 + currentMinute;
+        return nowMinutes >= entryMinutes && nowMinutes < entryMinutes + 15;
+      });
+
+      if (!matchingEntry) continue;
+
+      // Prevent duplicate: check if we already sent a reminder today
+      const todayKey = now.toISOString().split('T')[0];
+      if (ret.lastReminderShown === todayKey) continue;
+
+      // Create notification
+      notificationRepo.create({
+        userId: ret.userId,
+        userRole: 'patient',
+        type: 'session_reminder',
+        title: 'Time for your session',
+        message: `You scheduled a session for today at ${matchingEntry.time}. Take a moment to check in with yourself.`,
+        referenceType: 'session',
+      });
+
+      // Emit real-time notification
+      emitToUser(ret.userId, { type: 'notification:new', payload: { type: 'session_reminder' } });
+
+      // Mark as sent for today
+      retentionRepo.updateLastReminderShown(ret.userId, todayKey);
+
+      console.log(`[Sukoon] Session reminder sent to ${ret.userId} for ${matchingEntry.time}`);
+    }
+  } catch (err) {
+    console.error('[Sukoon] Session reminder error:', err);
+  }
+}
+
+// Run reminder check every 15 minutes
+setInterval(sendSessionReminders, 15 * 60 * 1000);
+// Also run on startup
+sendSessionReminders();
 
 // Check every hour whether it's time for Sunday evening summaries
 setInterval(() => {

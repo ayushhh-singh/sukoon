@@ -7,14 +7,28 @@ import * as notificationRepo from '../db/repositories/notificationRepo';
 
 const router = Router();
 
-// GET /api/treatment-plans?patientId= — list plans
-router.get('/', requireRole('doctor'), (req: Request, res: Response) => {
+// GET /api/treatment-plans?patientId= — list plans (patients see their own, doctors filter by patientId)
+router.get('/', (req: Request, res: Response) => {
+  const { id, role } = req.user!;
+
+  if (role === 'patient') {
+    // Patient can only see their own plans
+    const plans = planRepo.findByPatientId(id);
+    const plansWithGoals = plans.map(plan => ({
+      ...plan,
+      goals: goalRepo.findByPlanId(plan.id),
+    }));
+    res.json(plansWithGoals);
+    return;
+  }
+
+  // Doctor path
   const patientId = req.query.patientId as string;
   if (!patientId) {
     res.status(400).json({ error: 'patientId is required' });
     return;
   }
-  const plans = planRepo.findByPatientId(patientId, req.user!.id);
+  const plans = planRepo.findByPatientId(patientId, id);
   const plansWithGoals = plans.map(plan => ({
     ...plan,
     goals: goalRepo.findByPlanId(plan.id),

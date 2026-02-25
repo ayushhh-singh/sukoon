@@ -14,6 +14,7 @@ export async function streamChatCompletion(
   onDelta: (text: string) => void,
   onDone: (fullText: string) => void,
   onError: (error: string) => void,
+  options?: { maxTokens?: number; temperature?: number },
 ): Promise<void> {
   const apiKey = getOpenAIKey();
   if (!apiKey) {
@@ -32,8 +33,8 @@ export async function streamChatCompletion(
         model: CHAT_MODEL,
         messages,
         stream: true,
-        temperature: 0.85,
-        max_tokens: 1024,
+        temperature: options?.temperature ?? 0.85,
+        max_tokens: options?.maxTokens ?? 1024,
       }),
     });
 

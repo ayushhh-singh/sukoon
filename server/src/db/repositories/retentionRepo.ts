@@ -59,6 +59,15 @@ export function upsert(data: Retention): void {
   );
 }
 
+export function findAllWithSchedules(): Retention[] {
+  const rows = db.prepare("SELECT * FROM retention WHERE schedule != '[]'").all() as RetentionRow[];
+  return rows.map(parse);
+}
+
+export function updateLastReminderShown(userId: string, timestamp: string): void {
+  db.prepare('UPDATE retention SET lastReminderShown = ? WHERE userId = ?').run(timestamp, userId);
+}
+
 export function updateSchedule(userId: string, schedule: { dayOfWeek: number; time: string; enabled: boolean }[]): void {
   const existing = findByUserId(userId);
   existing.schedule = schedule;

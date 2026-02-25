@@ -16672,20 +16672,22 @@
 }
 
 .dc-card-check {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  border: 1.5px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .dc-card-check-on {
   background: var(--dc-color, var(--accent));
   border-color: var(--dc-color, var(--accent));
   color: white;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--dc-color, var(--accent)) 40%, transparent);
 }
 
 .dc-card-body {
@@ -16728,29 +16730,71 @@
 }
 
 :root:not([data-theme="dark"]) .doctor-context-card {
-  background: #f9fafb;
-  border-color: #e5e7eb;
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 :root:not([data-theme="dark"]) .dc-doctor-banner {
-  background: #f9fafb;
-  border-color: #e5e7eb;
+  background: #f0f4ff;
+  border: 1.5px solid #c7d2fe;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+:root:not([data-theme="dark"]) .dc-doctor-banner-meta {
+  opacity: 1;
+  color: var(--accent);
+  font-weight: 500;
 }
 
 :root:not([data-theme="dark"]) .dc-card {
-  background: #f9fafb;
-  border-color: #e5e7eb;
+  background: #ffffff;
+  border: 1.5px solid #d1d5db;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+:root:not([data-theme="dark"]) .dc-card:hover:not(.dc-card-disabled) {
+  border-color: #9ca3af;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 :root:not([data-theme="dark"]) .dc-card-active {
-  background: color-mix(in srgb, var(--dc-color, var(--accent)) 6%, white);
+  background: color-mix(in srgb, var(--dc-color, var(--accent)) 8%, white);
   border-color: var(--dc-color, var(--accent));
+  box-shadow: 0 0 0 1px var(--dc-color, var(--accent)), 0 2px 8px color-mix(in srgb, var(--dc-color, var(--accent)) 15%, transparent);
 }
 
 :root:not([data-theme="dark"]) .dc-card-icon {
-  background: #f0f0f0;
+  background: color-mix(in srgb, var(--dc-color, var(--accent)) 12%, #f3f4f6);
+}
+
+:root:not([data-theme="dark"]) .dc-card-active .dc-card-icon {
+  background: var(--dc-color, var(--accent));
+  color: white;
 }
 
 :root:not([data-theme="dark"]) .dc-card-check {
-  border-color: #d1d5db;
+  border: 2px solid #c0c5cc;
+  background: #f3f4f6;
+}
+
+:root:not([data-theme="dark"]) .dc-card-check-on {
+  background: var(--dc-color, var(--accent));
+  border-color: var(--dc-color, var(--accent));
+  color: white;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--dc-color, var(--accent)) 35%, transparent);
+}
+
+:root:not([data-theme="dark"]) .dc-card-disabled {
+  opacity: 0.45;
+  background: #f9fafb;
+}
+
+:root:not([data-theme="dark"]) .dc-card-label {
+  color: #1f2937;
+}
+
+:root:not([data-theme="dark"]) .dc-card-desc {
+  opacity: 1;
+  color: #6b7280;
 }

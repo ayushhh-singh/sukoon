@@ -346,7 +346,7 @@ export function DoctorContextPicker({ onSelect, onSkip, onBack }: DoctorContextP
               enabled={includeNotes && dataCounts.notes > 0}
               available={dataCounts.notes > 0}
               onToggle={() => setIncludeNotes(!includeNotes)}
-              color="var(--accent)"
+              color="#6366f1"
             />
             <ContextCard
               icon={<Pill size={22} />}

@@ -174,6 +174,8 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
         onNavigate('appointments');
       } else if (notif.referenceType === 'note' || notif.referenceType === 'medication') {
         onNavigate('doctor-input');
+      } else if (notif.referenceType === 'session') {
+        onNavigate('session');
       }
     }
     setShowPanel(false);
@@ -183,6 +185,7 @@ export function NotificationBell({ onNavigate }: NotificationBellProps) {
     if (type.startsWith('appointment')) return <Calendar size={14} />;
     if (type === 'note_added') return <FileText size={14} />;
     if (type.startsWith('medication') || type.startsWith('dose')) return <Pill size={14} />;
+    if (type === 'session_reminder') return <Calendar size={14} />;
     return <Bell size={14} />;
   }
 

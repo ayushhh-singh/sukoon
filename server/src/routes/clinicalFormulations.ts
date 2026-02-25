@@ -4,12 +4,21 @@ import * as formulationRepo from '../db/repositories/clinicalFormulationRepo';
 
 const router = Router();
 
-// GET /api/formulations?patientId= — get latest formulation
-router.get('/', requireRole('doctor'), (req: Request, res: Response) => {
+// GET /api/formulations?patientId= — get latest formulation (patients see their own)
+router.get('/', (req: Request, res: Response) => {
+  const { id, role } = req.user!;
+
+  if (role === 'patient') {
+    const formulation = formulationRepo.findByPatientId(id);
+    res.json(formulation || null);
+    return;
+  }
+
+  // Doctor path
   const patientId = req.query.patientId as string;
   if (!patientId) { res.status(400).json({ error: 'patientId is required' }); return; }
 
-  const formulation = formulationRepo.findByPatientId(patientId, req.user!.id);
+  const formulation = formulationRepo.findByPatientId(patientId, id);
   res.json(formulation || null);
 });
 

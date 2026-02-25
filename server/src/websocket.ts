@@ -8,6 +8,7 @@ import { assessCrisisLevel } from './crisisDetection';
 import { streamChatCompletion } from './chatCompletions';
 import { verifyToken } from './auth/auth';
 import * as sessionRepo from './db/repositories/sessionRepo';
+import * as retentionRepo from './db/repositories/retentionRepo';
 
 // ---- Timestamped Logger ----
 function ts(): string {
@@ -578,7 +579,7 @@ function handleSummaryResponse(session: Session, text: string): void {
       // Save session to database if user is authenticated
       if (session.userId) {
         try {
-          sessionRepo.create({
+          const savedSession = sessionRepo.create({
             sessionId: session.id,
             userId: session.userId,
             date: session.createdAt.toISOString(),
@@ -608,6 +609,13 @@ function handleSummaryResponse(session: Session, text: string): void {
             transcript: session.transcriptBuffer.map(t => ({ role: t.role, text: t.text })),
           });
           log(session.id, session.userLabel, 'Summary saved to database');
+
+          // Update streak and milestones
+          try {
+            wsUpdateRetention(session.userId, savedSession);
+          } catch (retErr) {
+            logError(session.id, session.userLabel, 'Retention update error (non-fatal)', retErr);
+          }
         } catch (dbError) {
           logError(session.id, session.userLabel, 'Failed to save summary to DB', dbError);
         }
@@ -736,6 +744,7 @@ function requestChatSummaryAndCleanup(session: Session): void {
       logError(session.id, session.userLabel, `Chat summary error: ${error}`);
       cleanupSession(session);
     },
+    { maxTokens: 4096, temperature: 0.3 },
   );
 
   // Fallback timeout
@@ -745,6 +754,50 @@ function requestChatSummaryAndCleanup(session: Session): void {
       cleanupSession(session);
     }
   }, 20000);
+}
+
+function wsUpdateRetention(userId: string, session: sessionRepo.Session): void {
+  const retention = retentionRepo.findByUserId(userId);
+  const today = new Date().toISOString().split('T')[0];
+  const last = retention.lastSessionDate;
+
+  // Update streak
+  if (last !== today) {
+    if (last) {
+      const diffMs = new Date(today).getTime() - new Date(last).getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      retention.currentStreak = diffDays === 1 ? retention.currentStreak + 1 : 1;
+    } else {
+      retention.currentStreak = 1;
+    }
+    if (retention.currentStreak > retention.longestStreak) {
+      retention.longestStreak = retention.currentStreak;
+    }
+    retention.lastSessionDate = today;
+  }
+
+  // Unlock milestones
+  const allSessions = sessionRepo.findByUserId(userId);
+  const now = new Date().toISOString();
+  const unlock = (id: string) => { if (!retention.milestones[id]) retention.milestones[id] = now; };
+
+  if (allSessions.length >= 1) unlock('first-session');
+  if (allSessions.length >= 5) unlock('sessions-5');
+  if (allSessions.length >= 10) unlock('sessions-10');
+  if (allSessions.length >= 25) unlock('sessions-25');
+  if (retention.currentStreak >= 3) unlock('streak-3');
+  if (retention.currentStreak >= 7) unlock('streak-7');
+  if (retention.currentStreak >= 14) unlock('streak-14');
+  if (retention.currentStreak >= 30) unlock('streak-30');
+  if (session.preAssessmentType) unlock('first-assessment');
+  if (session.preMoodValue != null && session.postMoodValue != null && session.postMoodValue > session.preMoodValue) {
+    unlock('mood-improved');
+  }
+  if (allSessions.some(s => s.userReflection && s.userReflection.trim().length > 0)) {
+    unlock('reflection-written');
+  }
+
+  retentionRepo.upsert(retention);
 }
 
 function sendToClient(ws: WebSocket, data: Record<string, unknown>): void {

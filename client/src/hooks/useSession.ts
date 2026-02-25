@@ -447,6 +447,14 @@ export function useSession() {
     } catch {
       StorageService.saveMood(mood);
     }
+    // Update post-mood on the session record
+    try {
+      await sessionsApi.updatePostMood(sessionIdRef.current, {
+        value: mood.value,
+        label: mood.label,
+        emoji: mood.emoji,
+      });
+    } catch { /* non-fatal */ }
     buildAndSaveSummary(mood);
     setPhase('summary');
   // eslint-disable-next-line react-hooks/exhaustive-deps
