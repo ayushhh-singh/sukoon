@@ -49,6 +49,9 @@ const JSON_FIELDS = [
   'recommendedActions', 'triggerPoints', 'transcript',
 ] as const;
 
+// Summary patches all JSON array fields except 'transcript' (immutable after creation)
+const SUMMARY_JSON_FIELDS = JSON_FIELDS.filter(f => f !== 'transcript');
+
 interface SessionRow extends Omit<Session, typeof JSON_FIELDS[number]> {
   keyTakeaways: string;
   copingStrategies: string;
@@ -198,7 +201,7 @@ export function updateSummary(sessionId: string, summary: Record<string, unknown
   const fields: string[] = [];
   const values: unknown[] = [];
 
-  const jsonArrayFields = ['keyTakeaways', 'copingStrategies', 'homeworkAssignments', 'topicsDiscussed', 'emotionalThemes', 'issuesIdentified', 'suggestedFocusAreas', 'techniquesUsed', 'recommendedActions', 'triggerPoints'];
+  const jsonArrayFields = SUMMARY_JSON_FIELDS;
   const stringFields = ['conversationAssessment', 'emotionalJourney', 'riskLevel', 'clinicalImpression', 'preliminaryDiagnosis', 'wayForward', 'rootCauseAnalysis', 'familyHistory', 'patientMedicalContext', 'frequencyPatterns', 'treatmentPlanAlignment'];
 
   for (const f of jsonArrayFields) {

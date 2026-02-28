@@ -49,8 +49,7 @@ router.post('/', requireRole('doctor'), (req: Request, res: Response) => {
     });
 
     // Notify patient
-    const doctor = doctorRepo.findById(req.user!.id);
-    const doctorName = doctor?.displayName || 'Your doctor';
+    const doctorName = doctorRepo.getDoctorDisplayName(req.user!.id);
     notificationRepo.create({
       userId: patientId,
       userRole: 'patient',

@@ -76,13 +76,12 @@ router.put('/:id', (req: Request, res: Response) => {
   if (req.body.status && req.body.status !== appointment.status) {
     const { id, role } = req.user!;
     if (role === 'doctor') {
-      const doctor = doctorRepo.findById(id);
       notificationRepo.create({
         userId: appointment.patientId,
         userRole: 'patient',
         type: `appointment_${req.body.status}`,
         title: `Appointment ${req.body.status}`,
-        message: `Dr. ${doctor?.displayName || 'Your doctor'} ${req.body.status} your appointment`,
+        message: `Dr. ${doctorRepo.getDoctorDisplayName(id)} ${req.body.status} your appointment`,
         referenceId: appointment.id,
         referenceType: 'appointment',
       });
@@ -115,13 +114,12 @@ router.put('/:id/start', requireRole('doctor'), (req: Request, res: Response) =>
 
   const updated = appointmentRepo.updateStatus(req.params.id as string, 'in_progress');
 
-  const doctor = doctorRepo.findById(req.user!.id);
   notificationRepo.create({
     userId: appointment.patientId,
     userRole: 'patient',
     type: 'appointment_started',
     title: 'Session started',
-    message: `Dr. ${doctor?.displayName || 'Your doctor'} has started your session`,
+    message: `Dr. ${doctorRepo.getDoctorDisplayName(req.user!.id)} has started your session`,
     referenceId: appointment.id,
     referenceType: 'appointment',
   });
@@ -139,13 +137,12 @@ router.put('/:id/complete', requireRole('doctor'), (req: Request, res: Response)
 
   const updated = appointmentRepo.updateStatus(req.params.id as string, 'completed');
 
-  const doctor = doctorRepo.findById(req.user!.id);
   notificationRepo.create({
     userId: appointment.patientId,
     userRole: 'patient',
     type: 'appointment_completed',
     title: 'Session completed',
-    message: `Your session with Dr. ${doctor?.displayName || 'your doctor'} has been completed`,
+    message: `Your session with Dr. ${doctorRepo.getDoctorDisplayName(req.user!.id)} has been completed`,
     referenceId: appointment.id,
     referenceType: 'appointment',
   });
@@ -184,13 +181,12 @@ router.put('/:id/reschedule', (req: Request, res: Response) => {
     emitToUser(appointment.doctorId, { type: 'appointment:updated', payload: updated });
     emitToUser(appointment.doctorId, { type: 'notification:new', payload: { type: 'appointment_rescheduled' } });
   } else {
-    const doctor = doctorRepo.findById(id);
     notificationRepo.create({
       userId: appointment.patientId,
       userRole: 'patient',
       type: 'appointment_rescheduled',
       title: 'Appointment rescheduled',
-      message: `Dr. ${doctor?.displayName || 'Your doctor'} rescheduled your appointment to ${new Date(dateTime).toLocaleDateString()}`,
+      message: `Dr. ${doctorRepo.getDoctorDisplayName(id)} rescheduled your appointment to ${new Date(dateTime).toLocaleDateString()}`,
       referenceId: appointment.id,
       referenceType: 'appointment',
     });

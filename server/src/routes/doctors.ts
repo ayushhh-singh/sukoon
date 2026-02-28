@@ -2,18 +2,9 @@ import { Router, type Request, type Response } from 'express';
 import { requireRole } from '../middleware/auth';
 import * as doctorRepo from '../db/repositories/doctorRepo';
 import * as userRepo from '../db/repositories/userRepo';
+import { sanitizeUser, sanitizeDoctor } from '../utils/sanitize';
 
 const router = Router();
-
-function sanitizeDoctor(doctor: doctorRepo.Doctor) {
-  const { passwordHash, ...safe } = doctor;
-  return safe;
-}
-
-function sanitizeUser(user: userRepo.User) {
-  const { passwordHash, ...safe } = user;
-  return safe;
-}
 
 // GET /api/doctors/me — doctor or admin
 router.get('/me', requireRole('doctor', 'admin'), (req: Request, res: Response) => {

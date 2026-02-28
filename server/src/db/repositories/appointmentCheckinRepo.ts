@@ -56,21 +56,3 @@ export function create(data: CreateCheckinInput): AppointmentCheckin {
   `).run(id, data.appointmentId, data.patientId, data.moodValue ?? null, data.moodLabel ?? null, JSON.stringify(data.concerns || []), data.goalsForSession ?? null, data.symptomsSinceLast ?? null, data.medicationIssues ?? null);
   return findById(id)!;
 }
-
-export function update(id: string, data: Partial<Omit<CreateCheckinInput, 'appointmentId' | 'patientId'>>): AppointmentCheckin | undefined {
-  const fields: string[] = [];
-  const values: unknown[] = [];
-
-  if (data.moodValue !== undefined) { fields.push('moodValue = ?'); values.push(data.moodValue); }
-  if (data.moodLabel !== undefined) { fields.push('moodLabel = ?'); values.push(data.moodLabel); }
-  if (data.concerns !== undefined) { fields.push('concerns = ?'); values.push(JSON.stringify(data.concerns)); }
-  if (data.goalsForSession !== undefined) { fields.push('goalsForSession = ?'); values.push(data.goalsForSession); }
-  if (data.symptomsSinceLast !== undefined) { fields.push('symptomsSinceLast = ?'); values.push(data.symptomsSinceLast); }
-  if (data.medicationIssues !== undefined) { fields.push('medicationIssues = ?'); values.push(data.medicationIssues); }
-
-  if (fields.length === 0) return findById(id);
-
-  values.push(id);
-  db.prepare(`UPDATE appointment_checkins SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-  return findById(id);
-}

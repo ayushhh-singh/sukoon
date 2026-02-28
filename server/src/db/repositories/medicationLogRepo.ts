@@ -99,18 +99,6 @@ export function getRecentLogs(medicationId: string, days = 14): DayLog[] {
   `).all(medicationId, cutoff.toISOString()) as DayLog[];
 }
 
-export function get7DayTallyByPatientId(patientId: string): { taken: number; total: number } {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 7);
-  const result = db.prepare(`
-    SELECT
-      COUNT(*) as total,
-      SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken
-    FROM medication_logs
-    WHERE patientId = ? AND scheduledTime >= ?
-  `).get(patientId, cutoff.toISOString()) as { total: number; taken: number } | undefined;
-  return result || { taken: 0, total: 0 };
-}
 
 export function getPatientWeekSummary(patientId: string): { total: number; taken: number; skipped: number; missed: number } {
   const cutoff = new Date();

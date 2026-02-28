@@ -1,6 +1,6 @@
 const CHAT_MODEL = 'gpt-4o';
 
-function getOpenAIKey(): string | undefined {
+export function getOpenAIKey(): string | undefined {
   return process.env.OPENAI_API_KEY;
 }
 
@@ -92,18 +92,4 @@ export async function streamChatCompletion(
   } catch (error) {
     onError(`Chat completion failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
-
-export async function chatCompletion(
-  messages: ChatMessage[],
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let result = '';
-    streamChatCompletion(
-      messages,
-      (delta) => { result += delta; },
-      (fullText) => resolve(fullText),
-      (error) => reject(new Error(error)),
-    );
-  });
 }

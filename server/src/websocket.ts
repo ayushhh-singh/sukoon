@@ -5,10 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { buildSystemPrompt, buildGreetingInstruction } from './systemPrompt';
 import type { SessionContext } from './systemPrompt';
 import { assessCrisisLevel } from './crisisDetection';
-import { streamChatCompletion } from './chatCompletions';
+import { streamChatCompletion, getOpenAIKey } from './chatCompletions';
 import { verifyToken } from './auth/auth';
 import * as sessionRepo from './db/repositories/sessionRepo';
-import * as retentionRepo from './db/repositories/retentionRepo';
+import { updateRetentionAfterSession } from './services/retentionService';
 
 // ---- Timestamped Logger ----
 function ts(): string {
@@ -27,9 +27,6 @@ function logError(sessionId: string, userLabel: string, msg: string, err?: unkno
   console.error(`[${ts()}] [Session ${sessionId}] [${userLabel}] ${msg}`, err || '');
 }
 
-function getOpenAIKey(): string | undefined {
-  return process.env.OPENAI_API_KEY;
-}
 const OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17';
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes max
 const MAX_CONCURRENT_SESSIONS = 10;
@@ -612,7 +609,7 @@ function handleSummaryResponse(session: Session, text: string): void {
 
           // Update streak and milestones
           try {
-            wsUpdateRetention(session.userId, savedSession);
+            updateRetentionAfterSession(session.userId, savedSession);
           } catch (retErr) {
             logError(session.id, session.userLabel, 'Retention update error (non-fatal)', retErr);
           }
@@ -756,49 +753,6 @@ function requestChatSummaryAndCleanup(session: Session): void {
   }, 20000);
 }
 
-function wsUpdateRetention(userId: string, session: sessionRepo.Session): void {
-  const retention = retentionRepo.findByUserId(userId);
-  const today = new Date().toISOString().split('T')[0];
-  const last = retention.lastSessionDate;
-
-  // Update streak
-  if (last !== today) {
-    if (last) {
-      const diffMs = new Date(today).getTime() - new Date(last).getTime();
-      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-      retention.currentStreak = diffDays === 1 ? retention.currentStreak + 1 : 1;
-    } else {
-      retention.currentStreak = 1;
-    }
-    if (retention.currentStreak > retention.longestStreak) {
-      retention.longestStreak = retention.currentStreak;
-    }
-    retention.lastSessionDate = today;
-  }
-
-  // Unlock milestones
-  const allSessions = sessionRepo.findByUserId(userId);
-  const now = new Date().toISOString();
-  const unlock = (id: string) => { if (!retention.milestones[id]) retention.milestones[id] = now; };
-
-  if (allSessions.length >= 1) unlock('first-session');
-  if (allSessions.length >= 5) unlock('sessions-5');
-  if (allSessions.length >= 10) unlock('sessions-10');
-  if (allSessions.length >= 25) unlock('sessions-25');
-  if (retention.currentStreak >= 3) unlock('streak-3');
-  if (retention.currentStreak >= 7) unlock('streak-7');
-  if (retention.currentStreak >= 14) unlock('streak-14');
-  if (retention.currentStreak >= 30) unlock('streak-30');
-  if (session.preAssessmentType) unlock('first-assessment');
-  if (session.preMoodValue != null && session.postMoodValue != null && session.postMoodValue > session.preMoodValue) {
-    unlock('mood-improved');
-  }
-  if (allSessions.some(s => s.userReflection && s.userReflection.trim().length > 0)) {
-    unlock('reflection-written');
-  }
-
-  retentionRepo.upsert(retention);
-}
 
 function sendToClient(ws: WebSocket, data: Record<string, unknown>): void {
   if (ws.readyState === WebSocket.OPEN) {

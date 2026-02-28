@@ -250,7 +250,7 @@ export function PatientApp() {
           <PatientAwareness onStartSession={() => setActiveTab('sessions')} />
         )}
         {activeTab === 'settings' && (
-          <PatientSettings onProfileUpdated={session.refreshProfile} />
+          <PatientSettings onProfileUpdated={() => {}} />
         )}
       </main>
     </div>

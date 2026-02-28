@@ -41,7 +41,7 @@ export function TherapistOverview() {
         const [pats, sess, adherence] = await Promise.all([
           doctorsApi.getMyPatients(),
           sessionsApi.list(),
-          medsApi.adherenceOverview().catch(() => []),
+          Promise.resolve([]),
         ]);
         const patientList = pats.map(p => ({
           id: p.id as string,

@@ -3,19 +3,9 @@ import { hashPassword, verifyPassword, generateToken, ADMIN_EMAIL } from '../aut
 import { authMiddleware } from '../middleware/auth';
 import * as userRepo from '../db/repositories/userRepo';
 import * as doctorRepo from '../db/repositories/doctorRepo';
+import { sanitizeUser, sanitizeDoctor } from '../utils/sanitize';
 
 const router = Router();
-
-// Strip sensitive fields from user
-function sanitizeUser(user: userRepo.User) {
-  const { passwordHash, ...safe } = user;
-  return safe;
-}
-
-function sanitizeDoctor(doctor: doctorRepo.Doctor) {
-  const { passwordHash, ...safe } = doctor;
-  return safe;
-}
 
 // POST /api/auth/register/patient
 router.post('/register/patient', (req: Request, res: Response) => {

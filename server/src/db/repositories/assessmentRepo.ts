@@ -32,10 +32,6 @@ export function findLatest(userId: string, type: string): Assessment | undefined
   return row ? parse(row) : undefined;
 }
 
-export function findByUserIdAndType(userId: string, type: string): Assessment[] {
-  const rows = db.prepare('SELECT * FROM assessments WHERE userId = ? AND type = ? ORDER BY completedAt ASC').all(userId, type) as AssessmentRow[];
-  return rows.map(parse);
-}
 
 export function findTrendsByUserId(userId: string): Record<string, { score: number; date: string; severity: string }[]> {
   const rows = db.prepare('SELECT type, totalScore, severity, completedAt FROM assessments WHERE userId = ? ORDER BY completedAt ASC').all(userId) as { type: string; totalScore: number; severity: string; completedAt: string }[];

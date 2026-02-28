@@ -78,13 +78,6 @@ export function useSession() {
   const summaryDataRef = useRef<ServerMessage['summary']>(undefined);
   const prescribedMedsRef = useRef<Record<string, unknown>[]>([]);
 
-  // Pre-fetch prescribed medications for AI context (patient only)
-  useEffect(() => {
-    if (!user) return;
-    medsApi.getActiveMedContext().then(meds => {
-      prescribedMedsRef.current = meds;
-    }).catch(() => { /* ignore */ });
-  }, [user]);
 
   const { status, connect, disconnect, send, onMessage } = useWebSocket();
   const { isCapturing, isMuted, volume: micVolume, startCapture, stopCapture, toggleMute } = useAudioCapture();
@@ -561,11 +554,6 @@ export function useSession() {
     setUserRole(role);
   }, []);
 
-  // Refresh profile data (after settings change)
-  const refreshProfile = useCallback(() => {
-    // No-op now; PatientSettings calls AuthContext.refreshProfile directly
-  }, []);
-
   // Go back to previous phase
   const goBack = useCallback(() => {
     switch (phase) {
@@ -621,7 +609,7 @@ export function useSession() {
     sessionMode, selectMode, chatMessages, sendChatMessage,
 
     // Navigation
-    goBack, refreshProfile,
+    goBack,
 
     priorSessions, selectPriorSession, skipPriorSession,
 

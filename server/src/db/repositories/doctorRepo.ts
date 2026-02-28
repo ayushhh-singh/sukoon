@@ -150,3 +150,8 @@ export function getLinkedDoctorIds(patientId: string): string[] {
   ).all(patientId) as { doctorId: string }[];
   return rows.map(r => r.doctorId);
 }
+
+export function getDoctorDisplayName(doctorId: string): string {
+  const doctor = findById(doctorId);
+  return doctor?.displayName || 'Your doctor';
+}

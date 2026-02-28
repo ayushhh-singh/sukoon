@@ -91,10 +91,6 @@ export function update(id: string, data: Partial<Omit<CreateSafetyPlanInput, 'do
   return findById(id);
 }
 
-export function deactivate(id: string): void {
-  db.prepare("UPDATE safety_plans SET isActive = 0, updatedAt = datetime('now') WHERE id = ?").run(id);
-}
-
 export function remove(id: string): void {
   db.prepare('DELETE FROM safety_plans WHERE id = ?').run(id);
 }

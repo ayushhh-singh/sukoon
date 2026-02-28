@@ -26,11 +26,6 @@ export function emitToUser(userId: string, event: RealtimeEvent): void {
   }
 }
 
-export function emitToUsers(userIds: string[], event: RealtimeEvent): void {
-  for (const id of userIds) {
-    emitToUser(id, event);
-  }
-}
 
 // ---- Setup ----
 export function setupEventWebSocket(_server: http.Server): WebSocketServer {

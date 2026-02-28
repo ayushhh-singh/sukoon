@@ -7,41 +7,33 @@ import * as notificationRepo from '../db/repositories/notificationRepo';
 
 const router = Router();
 
+function requirePlanOwnership(planId: string, doctorId: string, res: Response): ReturnType<typeof planRepo.findById> {
+  const plan = planRepo.findById(planId);
+  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return undefined; }
+  if (plan.doctorId !== doctorId) { res.status(403).json({ error: 'Access denied' }); return undefined; }
+  return plan;
+}
+
 // GET /api/treatment-plans?patientId= — list plans (patients see their own, doctors filter by patientId)
 router.get('/', (req: Request, res: Response) => {
   const { id, role } = req.user!;
 
   if (role === 'patient') {
-    // Patient can only see their own plans
     const plans = planRepo.findByPatientId(id);
-    const plansWithGoals = plans.map(plan => ({
-      ...plan,
-      goals: goalRepo.findByPlanId(plan.id),
-    }));
-    res.json(plansWithGoals);
+    res.json(plans.map(plan => ({ ...plan, goals: goalRepo.findByPlanId(plan.id) })));
     return;
   }
 
-  // Doctor path
   const patientId = req.query.patientId as string;
-  if (!patientId) {
-    res.status(400).json({ error: 'patientId is required' });
-    return;
-  }
+  if (!patientId) { res.status(400).json({ error: 'patientId is required' }); return; }
   const plans = planRepo.findByPatientId(patientId, id);
-  const plansWithGoals = plans.map(plan => ({
-    ...plan,
-    goals: goalRepo.findByPlanId(plan.id),
-  }));
-  res.json(plansWithGoals);
+  res.json(plans.map(plan => ({ ...plan, goals: goalRepo.findByPlanId(plan.id) })));
 });
 
 // GET /api/treatment-plans/:id — get plan with goals
 router.get('/:id', requireRole('doctor'), (req: Request, res: Response) => {
-  const plan = planRepo.findById(req.params.id as string);
-  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-  if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
-
+  const plan = requirePlanOwnership(req.params.id as string, req.user!.id, res);
+  if (!plan) return;
   res.json({ ...plan, goals: goalRepo.findByPlanId(plan.id) });
 });
 
@@ -65,8 +57,7 @@ router.post('/', requireRole('doctor'), (req: Request, res: Response) => {
     });
 
     // Notify patient
-    const doctor = doctorRepo.findById(req.user!.id);
-    const doctorName = doctor?.displayName || 'Your doctor';
+    const doctorName = doctorRepo.getDoctorDisplayName(req.user!.id);
     notificationRepo.create({
       userId: patientId,
       userRole: 'patient',
@@ -86,9 +77,8 @@ router.post('/', requireRole('doctor'), (req: Request, res: Response) => {
 
 // PUT /api/treatment-plans/:id — update plan
 router.put('/:id', requireRole('doctor'), (req: Request, res: Response) => {
-  const plan = planRepo.findById(req.params.id as string);
-  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-  if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+  const plan = requirePlanOwnership(req.params.id as string, req.user!.id, res);
+  if (!plan) return;
 
   const { title, diagnosis, status, startDate, targetEndDate, notes } = req.body;
   const updated = planRepo.update(req.params.id as string, {
@@ -99,9 +89,8 @@ router.put('/:id', requireRole('doctor'), (req: Request, res: Response) => {
 
 // DELETE /api/treatment-plans/:id
 router.delete('/:id', requireRole('doctor'), (req: Request, res: Response) => {
-  const plan = planRepo.findById(req.params.id as string);
-  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-  if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+  const plan = requirePlanOwnership(req.params.id as string, req.user!.id, res);
+  if (!plan) return;
 
   planRepo.remove(req.params.id as string);
   res.json({ success: true });
@@ -111,19 +100,16 @@ router.delete('/:id', requireRole('doctor'), (req: Request, res: Response) => {
 
 // GET /api/treatment-plans/:planId/goals
 router.get('/:planId/goals', requireRole('doctor'), (req: Request, res: Response) => {
-  const plan = planRepo.findById(req.params.planId as string);
-  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-  if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
-
+  const plan = requirePlanOwnership(req.params.planId as string, req.user!.id, res);
+  if (!plan) return;
   res.json(goalRepo.findByPlanId(plan.id));
 });
 
 // POST /api/treatment-plans/:planId/goals
 router.post('/:planId/goals', requireRole('doctor'), (req: Request, res: Response) => {
   try {
-    const plan = planRepo.findById(req.params.planId as string);
-    if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-    if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+    const plan = requirePlanOwnership(req.params.planId as string, req.user!.id, res);
+    if (!plan) return;
 
     const { title, description, targetDate, interventions, notes } = req.body;
     if (!title) { res.status(400).json({ error: 'title is required' }); return; }
@@ -145,9 +131,8 @@ router.post('/:planId/goals', requireRole('doctor'), (req: Request, res: Respons
 
 // PUT /api/treatment-plans/:planId/goals/:goalId
 router.put('/:planId/goals/:goalId', requireRole('doctor'), (req: Request, res: Response) => {
-  const plan = planRepo.findById(req.params.planId as string);
-  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-  if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+  const plan = requirePlanOwnership(req.params.planId as string, req.user!.id, res);
+  if (!plan) return;
 
   const goal = goalRepo.findById(req.params.goalId as string);
   if (!goal || goal.planId !== plan.id) { res.status(404).json({ error: 'Goal not found' }); return; }
@@ -161,9 +146,8 @@ router.put('/:planId/goals/:goalId', requireRole('doctor'), (req: Request, res: 
 
 // DELETE /api/treatment-plans/:planId/goals/:goalId
 router.delete('/:planId/goals/:goalId', requireRole('doctor'), (req: Request, res: Response) => {
-  const plan = planRepo.findById(req.params.planId as string);
-  if (!plan) { res.status(404).json({ error: 'Treatment plan not found' }); return; }
-  if (plan.doctorId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+  const plan = requirePlanOwnership(req.params.planId as string, req.user!.id, res);
+  if (!plan) return;
 
   const goal = goalRepo.findById(req.params.goalId as string);
   if (!goal || goal.planId !== plan.id) { res.status(404).json({ error: 'Goal not found' }); return; }
